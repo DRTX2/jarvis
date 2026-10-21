@@ -1,0 +1,26 @@
+import { useState } from 'react'
+import type { Memory } from '../types'
+import type { Jarvis } from '../useJarvis'
+import { useDraft } from '../useDraft'
+
+function MemoryEditor({ jarvis, memory, close }: { jarvis: Jarvis; memory?: Memory; close: () => void }) {
+  const draft = useDraft(`memory-${memory ? `${memory.id}-${memory.version}` : 'new'}`, { title: memory?.title ?? '', content: memory?.content ?? '', origin: memory?.origin ?? 'Declaración manual', validUntil: memory?.validUntil ?? '' })
+  const input = draft.value
+  return <form className="task-editor" aria-label="Editor de recuerdo" onSubmit={(event) => { event.preventDefault(); void jarvis.saveMemory({ ...input, validUntil: input.validUntil || null }, memory).then((ok) => { if (ok) { draft.clear(); close() } }) }}>
+    <h3>{memory ? 'Corregir recuerdo' : 'Añadir recuerdo explícito'}</h3><label htmlFor="memory-title">Título del recuerdo</label><input id="memory-title" maxLength={80} required disabled={jarvis.busy} value={input.title} onChange={(event) => draft.change({ ...input, title: event.target.value })} />
+    <label htmlFor="memory-content">Contenido del recuerdo</label><textarea id="memory-content" maxLength={500} required disabled={jarvis.busy} value={input.content} onChange={(event) => draft.change({ ...input, content: event.target.value })} />
+    <label>Procedencia del recuerdo<input required maxLength={120} disabled={jarvis.busy} value={input.origin} onChange={(event) => draft.change({ ...input, origin: event.target.value })} /></label><label>Vigente hasta (día UTC, opcional)<input type="date" disabled={jarvis.busy} value={input.validUntil} onChange={(event) => draft.change({ ...input, validUntil: event.target.value })} /></label>
+    <p className="field-note">Guardar aprueba conservarlo localmente. No se envía a IA. Los recuerdos vencidos se conservan para revisión, pero se excluyen del contexto externo. Borrador en esta pestaña. {draft.warning}</p><div className="form-actions"><button type="button" className="button subtle" disabled={jarvis.busy} onClick={close}>Cancelar recuerdo</button><button className="button primary" disabled={jarvis.busy || !input.title.trim() || !input.content.trim() || !input.origin.trim()}>Guardar recuerdo</button></div>
+  </form>
+}
+export function Memories({ jarvis }: { jarvis: Jarvis }) {
+  const [editor, setEditor] = useState<Memory | 'new' | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [filter, setFilter] = useState('')
+  return <section className="roadmap-section" aria-label="Memoria revisable"><div className="section-heading"><h2>Memoria que tú controlas</h2><button className="button outline" disabled={jarvis.busy} onClick={() => setEditor('new')}>Añadir recuerdo</button></div><p>Preferencias y hechos que decides conservar. Jarvis no los extrae automáticamente. En Conversar eliges los recuerdos relevantes para cada mensaje.</p>
+    <label>Buscar recuerdos<input value={filter} onChange={(event) => setFilter(event.target.value)} /></label>
+    {editor && <MemoryEditor key={editor === 'new' ? 'new' : `${editor.id}-${editor.version}`} jarvis={jarvis} memory={editor === 'new' ? undefined : editor} close={() => setEditor(null)} />}
+    {jarvis.data.memories.length ? jarvis.data.memories.filter((memory) => `${memory.title} ${memory.content} ${memory.origin}`.toLocaleLowerCase().includes(filter.toLocaleLowerCase())).map((memory) => <article className="task-editor" key={memory.id}><h3>{memory.title}</h3><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{memory.content}</p><p className="field-note">Procedencia: {memory.origin}. Versión {memory.version}. Creado: {memory.createdAt ? new Date(memory.createdAt).toLocaleDateString() : 'Sin fecha histórica registrada'}. Actualizado: {new Date(memory.updatedAt).toLocaleDateString()}. {memory.validUntil ? `Vigente hasta ${memory.validUntil} UTC; ${memory.expired ? 'vencido, no se comparte' : 'vigente'}.` : 'Sin vencimiento.'}</p>{memory.sourceText && <details><summary>Mensaje original de la propuesta</summary><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{memory.sourceText}</p><p className="field-note">Procedencia original, no una confirmación de que el contenido actual sea verdadero.</p></details>}<div className="form-actions"><button className="button subtle" disabled={jarvis.busy} onClick={() => setEditor(memory)}>Corregir: {memory.title}</button><button className="button danger" disabled={jarvis.busy} onClick={() => deleting === memory.id ? void jarvis.deleteMemory(memory).then((ok) => { if (ok) { setDeleting(null); setEditor(null) } }) : setDeleting(memory.id)}>{deleting === memory.id ? `Confirmar borrado: ${memory.title}` : `Borrar: ${memory.title}`}</button>{deleting === memory.id && <button className="button subtle" disabled={jarvis.busy} onClick={() => setDeleting(null)}>Cancelar borrado</button>}</div></article>) : <p className="muted">Todavía no hay recuerdos aprobados.</p>}
+    <p className="field-note">Borrar excluye el recuerdo de futuros envíos y elimina su procedencia local asociada. No elimina mensajes, exportaciones, backups ni retenciones externas. Evita guardar secretos.</p>
+  </section>
+}

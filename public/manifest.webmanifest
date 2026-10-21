@@ -1,0 +1,11 @@
+{
+  "name": "Jarvis",
+  "short_name": "Jarvis",
+  "description": "Tu asistente personal para organizar el día y aprender con intención.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#102338",
+  "theme_color": "#102338",
+  "lang": "es",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

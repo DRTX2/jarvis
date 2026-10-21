@@ -1,0 +1,16 @@
+node_modules/
+dist/
+data/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+playwright-report/
+test-results/
+*.log
+
+# Claude Code: ajustes personales y conversaciones privadas
+.claude/settings.local.json
+docs/historial/

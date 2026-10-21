@@ -1,0 +1,14 @@
+:root {
+  color-scheme: dark;
+  --background: #102338;
+  --sidebar: #0c1c2c;
+  --panel: #172d42;
+  --text: #e2ebf0;
+  --muted: #9bafbe;
+  --accent: #88cdd9;
+  --accent-soft: #88cdd914;
+  --gold: #cbb887;
+  --danger: #e8b3a3;
+  --line: #c5dfed14;
+  --line-strong: #40596c;
+}

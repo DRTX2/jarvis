@@ -1,0 +1,20 @@
+import type { StudySession } from '../types'
+import type { ReactNode } from 'react'
+
+export const blankSession: StudySession = { method: 'recall', answer: '', retry: '', transfer: '', confidence: 0, hintUsed: false, revealed: false, errors: [] }
+export const methods = {
+  recall: 'Recuperación activa: responde sin consultar, explica por qué y luego contrasta. Recordar con esfuerzo es distinto de reconocer una explicación.',
+  feynman: 'Autoexplicación tipo Feynman: explícaselo a un principiante, define la jerga, usa un ejemplo y señala dónde tu analogía deja de funcionar. No basta sonar sencillo: comprueba la exactitud.',
+  transfer: 'Transferencia: inventa un caso diferente, aplica la idea y justifica qué cambiaría si una condición fuera distinta. Identifica también cuándo no se aplica.',
+}
+export function StudyCoach({ session, change, busy, save, hideExplanation, attempt }: { session: StudySession; change: (update: Partial<StudySession>) => void; busy: boolean; save: () => void; hideExplanation: () => void; attempt: ReactNode }) {
+  const errors = { recall: 'No lo recordaba', understanding: 'Confundí el concepto', application: 'No supe aplicarlo', aids: 'Dependí de ayudas' } as const
+  return <section className="self-review" aria-label="Ciclo de aprendizaje"><h3>Construye evidencia, no una sensación de dominio.</h3>
+    <label>Modo de práctica<select aria-label="Modo de práctica" disabled={busy || session.revealed} value={session.method} onChange={(event) => change({ method: event.target.value as StudySession['method'] })}><option value="recall">Recuperación activa</option><option value="feynman">Explicación Feynman</option><option value="transfer">Aplicación y transferencia</option></select></label><p>{methods[session.method]}</p>
+    <label>Confianza antes de comparar<select aria-label="Confianza antes de comparar" disabled={busy || session.revealed} value={session.confidence} onChange={(event) => change({ confidence: Number(event.target.value) })}><option value={0}>No registrada</option><option value={1}>Baja</option><option value={2}>Media</option><option value={3}>Alta</option></select></label>
+    {attempt}
+    {session.revealed && <><h3>Corrige y recupera otra vez</h3><p>Compara con los criterios de la explicación. Marca el origen de la dificultad; no confundas haber leído la solución con haberla recordado.</p>{Object.entries(errors).map(([key, label]) => <label className="consent-label" key={key}><input type="checkbox" disabled={busy} checked={session.errors.includes(key as StudySession['errors'][number])} onChange={(event) => change({ errors: event.target.checked ? [...session.errors, key as StudySession['errors'][number]] : session.errors.filter((item) => item !== key) })} />{label}</label>)}<button className="button outline" disabled={busy} onClick={hideExplanation}>Ocultar solución y reintentar</button><label htmlFor="second-attempt">Segundo intento sin mirar</label><textarea id="second-attempt" maxLength={2000} rows={4} disabled={busy} value={session.retry} onChange={(event) => change({ retry: event.target.value })} placeholder="Reconstruye tu explicación. ¿Qué corregiste y por qué?" /><label htmlFor="transfer-attempt">Aplicación a un caso nuevo</label><textarea id="transfer-attempt" maxLength={2000} rows={3} disabled={busy} value={session.transfer} onChange={(event) => change({ transfer: event.target.value })} placeholder="Crea un ejemplo distinto y justifica qué harías. Puedes responder aquí a la pregunta de transferencia de Gemini." /></>}
+    {session.hintUsed && <p className="field-note">Este intento usó una pista. Se programará un repaso corto para comprobar recuperación independiente, no un aumento automático de intervalo.</p>}
+    <button className="button outline" disabled={busy} onClick={save}>Guardar progreso para continuar</button><p className="field-note">Guardado local explícito. Puedes retomar tras recargar; nada se envía a IA al guardar. Los borradores no cuentan como repasos terminados.</p>
+  </section>
+}
