@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { request as httpRequest } from 'node:http'
 import { createApp } from './app.mjs'
 import { createStore } from './store.mjs'
@@ -107,7 +108,7 @@ test('guardar perfil y exportar incluye también intentos y mensajes completos',
 })
 
 test('los datos sobreviven al cierre y reapertura de SQLite', () => {
-  const directory = mkdtempSync('/tmp/opencode/jarvis-store-')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-store-'))
   let store
   try {
     const path = join(directory, 'test.sqlite')

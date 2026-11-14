@@ -4,6 +4,7 @@ import { createApp } from './app.mjs'
 import { createStore } from './store.mjs'
 import { mkdtempSync, readdirSync, unlinkSync, rmdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { migrate } from './migrations.mjs'
 
 const material = { topic: 'Redes', question: '¿Qué distingue TCP y UDP?', hint: 'Piensa en entrega y orden.', answer: 'TCP ofrece un flujo fiable y ordenado; UDP envía datagramas sin esa garantía.', checkpoints: ['Distinguir garantías de entrega.'] }
@@ -124,7 +125,7 @@ test('memoria elegida es trazable, excluye vencidos y no manda recuerdos adicion
 })
 
 test('procedencia de recuerdos y objetivos persisten; migración v7 no inventa fechas', () => {
-  const directory = mkdtempSync('/tmp/opencode/jarvis-goals-')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-goals-'))
   const path = join(directory, 'test.sqlite')
   let store = createStore(path)
   try {
@@ -191,7 +192,7 @@ test('editar una tarea con versión antigua no sobrescribe cambios externos', as
 })
 
 test('migración v6 agrega biblioteca sin perder datos, y sus materiales sobreviven al reinicio', () => {
-  const directory = mkdtempSync('/tmp/opencode/jarvis-knowledge-')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-knowledge-'))
   const path = join(directory, 'test.sqlite')
   let store = createStore(path)
   try {
@@ -268,7 +269,7 @@ test('propuestas de recuerdos: consentimiento, edición aprobada, recuperación,
 })
 
 test('caducidad y recuperación persistente de propuestas sin ejecutar acciones', () => {
-  const directory = mkdtempSync('/tmp/opencode/jarvis-proposals-')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-proposals-'))
   const path = join(directory, 'test.sqlite')
   let now = new Date('2026-10-10T12:00:00Z')
   let store = createStore(path, { clock: () => now })
@@ -419,7 +420,7 @@ test('la IA no puede introducir acciones no autorizadas o campos ejecutables en 
 })
 
 test('el ciclo de estudio sobrevive al cierre y reapertura del archivo SQLite', () => {
-  const directory = mkdtempSync('/tmp/opencode/jarvis-coach-')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-coach-'))
   const path = join(directory, 'sessions.sqlite')
   let store
   try {

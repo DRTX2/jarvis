@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { mkdtempSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { createApp } from './app.mjs'
 import { createStore } from './store.mjs'
 import { versionOneSchema } from './migrations.mjs'
@@ -231,7 +232,7 @@ test('el resumen semanal usa lunes a domingo y cuenta tareas distintas en vez de
 })
 
 test('migración v1 a v2 conserva perfil, tareas y mensajes; no inventa finalizaciones', () => {
-  const directory = mkdtempSync('/tmp/opencode/jarvis-migration-')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-migration-'))
   const path = join(directory, 'legacy.sqlite')
   let store
   try {
@@ -266,7 +267,7 @@ test('migración v1 a v2 conserva perfil, tareas y mensajes; no inventa finaliza
 })
 
 test('no modifica ni rebaja una base de datos de una versión más nueva', () => {
-  const directory = mkdtempSync('/tmp/opencode/jarvis-future-db-')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-future-db-'))
   const path = join(directory, 'future.sqlite')
   try {
     let db = new DatabaseSync(path)
