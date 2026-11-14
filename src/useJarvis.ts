@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, json, localDay } from './api'
 import type { ApprovedPlan, Daily, Data, Health, Message, PlanInput, PlanProposal, Profile, ReviewNotes, Study, Task, TaskInput, Weekly } from './types'
 import type { ChatContext, Feedback, MaterialProposal } from './types'
-import type { StudySession, TaskProposal } from './types'
+import type { AppliedAction, StudySession, TaskProposal } from './types'
 import type { Memory, MemoryProposal, TaskAction, KnowledgeInput } from './types'
 import type { Goal, GoalInput, PracticePlan, ChatReply, Device, Setup } from './types'
 import { useDraft } from './useDraft'
@@ -10,7 +10,7 @@ import { useDraft } from './useDraft'
 const initial: Data = {
   profile: { name: '', goal: '', tone: 'cercano' }, tasks: [], messages: [], reminders: [],
   study: { cards: [], attempts: 0, sessions: [], recentAttempts: [] },
-  health: { provider: 'demo', externalAIEnabled: false, storage: 'sqlite', reminders: 'in-app-only', dailyRequests: 0, maxDailyRequests: 5 },
+  health: { provider: 'demo', externalAIEnabled: false, storage: 'sqlite', reminders: 'desktop-push', dailyRequests: 0, maxDailyRequests: 5 },
   daily: {
     day: localDay(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     plan: null, review: null, needsReviewUpdate: false,
@@ -107,6 +107,15 @@ export function useJarvis() {
     toggleTask: (task: Task) => run(() => api(`/tasks/${task.id}`, { method: 'PATCH', body: json({ done: !task.done }) })),
     deleteTask: (id: number) => run(() => api(`/tasks/${id}`, { method: 'DELETE' })),
     acknowledge: (id: number) => run(() => api(`/reminders/${id}/acknowledge`, { method: 'POST', body: '{}' })),
+    snooze: (id: number, minutes: number) => run(() => api(`/reminders/${id}/snooze`, { method: 'POST', body: json({ minutes }) })),
+    pushKey: () => api<{ publicKey: string; devices: number }>('/push'),
+    savePush: (subscription: PushSubscriptionJSON) => run(() => api('/push', { method: 'POST', body: json(subscription) })),
+    deletePush: (endpoint: string) => run(() => api('/push', { method: 'DELETE', body: json({ endpoint }) })),
+    testPush: async () => (await perform(() => api<{ delivered: boolean }>('/push/test', { method: 'POST', body: '{}' }), false))?.value.delivered ?? null,
+    // Deshacer una acción aplicada desde el chat; la versión evita pisar un cambio posterior.
+    undo: ({ action, task, previous }: AppliedAction) => run(() => action === 'created'
+      ? api(`/tasks/${task.id}`, { method: 'DELETE' })
+      : api(`/tasks/${task.id}`, { method: 'PATCH', body: json(action === 'reopened' ? { done: true, expectedVersion: task.version } : task.repeat ? { dueAt: previous?.dueAt ?? task.dueAt, expectedVersion: task.version } : { done: false, expectedVersion: task.version }) })),
     saveProfile: (profile: Profile) => run(() => api('/profile', { method: 'PUT', body: json(profile) })),
     addKnowledge: (material: KnowledgeInput) => run(() => api('/knowledge', { method: 'POST', body: json(material) })),
     deleteKnowledge: (id: string) => run(() => api(`/knowledge/${id}`, { method: 'DELETE' })),

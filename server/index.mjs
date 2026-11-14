@@ -1,7 +1,10 @@
 import { createApp } from './app.mjs'
+import { desktopNotifier, pushNotifier, startReminders } from './reminders.mjs'
 
 process.umask(0o077)
+const notifiers = []
 const { app, store } = createApp({
+  notifiers,
   databasePath: process.env.DATABASE_PATH,
   provider: process.env.AI_PROVIDER ?? 'ollama',
   ollamaUrl: process.env.OLLAMA_URL,
@@ -15,11 +18,15 @@ const { app, store } = createApp({
   model: process.env.GEMINI_MODEL,
   maxDailyRequests: process.env.AI_MAX_DAILY_REQUESTS,
 })
+// Avisos con la app cerrada: escritorio (notify-send) y push a los navegadores suscritos, cada 30 s.
+notifiers.push(desktopNotifier(), pushNotifier(store))
+const stopReminders = startReminders(store, notifiers)
 const port = Number(process.env.PORT ?? 3001)
 const server = app.listen(port, '127.0.0.1', () => {
   console.log(`Jarvis API: http://127.0.0.1:${port} · base privada local`)
 })
 function shutdown() {
+  stopReminders()
   server.close(() => { store.close(); process.exit(0) })
   server.closeAllConnections()
 }

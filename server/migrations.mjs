@@ -49,9 +49,9 @@ const versionTwoSchema = `
 
 export function migrate(db) {
   const version = db.prepare('PRAGMA user_version').get().user_version
-  if (version > 8) throw new Error('La base de datos pertenece a una versión más nueva de Jarvis. No se ha modificado.')
+  if (version > 9) throw new Error('La base de datos pertenece a una versión más nueva de Jarvis. No se ha modificado.')
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;')
-  if (version === 8) return
+  if (version === 9) return
   db.exec('BEGIN IMMEDIATE')
   try {
     if (version === 0) db.exec(versionOneSchema)
@@ -77,7 +77,7 @@ export function migrate(db) {
       CREATE TABLE memory_proposals (id TEXT PRIMARY KEY, memory_json TEXT NOT NULL, created_at TEXT NOT NULL, result_json TEXT);
       PRAGMA user_version = 6;`)
     if (version < 7) db.exec(`CREATE TABLE knowledge (id TEXT PRIMARY KEY, title TEXT NOT NULL, topic TEXT NOT NULL, content TEXT NOT NULL, origin TEXT NOT NULL, url TEXT, created_at TEXT NOT NULL);`)
-    db.exec(`CREATE TABLE goals (id TEXT PRIMARY KEY, content_json TEXT NOT NULL, version INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+    if (version < 8) db.exec(`CREATE TABLE goals (id TEXT PRIMARY KEY, content_json TEXT NOT NULL, version INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE goal_tasks (goal_id TEXT NOT NULL, step_id TEXT NOT NULL, task_id INTEGER NOT NULL, PRIMARY KEY (goal_id, step_id));
       CREATE TABLE sourced_proposals (id TEXT PRIMARY KEY, card_id TEXT, revision INTEGER NOT NULL, references_json TEXT NOT NULL, created_at TEXT NOT NULL, result_json TEXT);
       ALTER TABLE memories ADD COLUMN origin TEXT NOT NULL DEFAULT 'Origen no registrado (anterior)';
@@ -86,7 +86,17 @@ export function migrate(db) {
       ALTER TABLE memories ADD COLUMN source_text TEXT;
       ALTER TABLE memory_proposals ADD COLUMN source_text TEXT;
       ALTER TABLE messages ADD COLUMN context_json TEXT;
-      PRAGMA user_version = 8; COMMIT;`)
+      PRAGMA user_version = 8;`)
+    // v9: avisos que suenan (escritorio y push), tareas que se repiten y repaso adaptativo (FSRS).
+    db.exec(`ALTER TABLE tasks ADD COLUMN repeat TEXT;
+      ALTER TABLE tasks ADD COLUMN snoozed_until TEXT;
+      ALTER TABLE tasks ADD COLUMN notified_at TEXT;
+      ALTER TABLE reviews ADD COLUMN stability REAL;
+      ALTER TABLE reviews ADD COLUMN difficulty REAL;
+      ALTER TABLE reviews ADD COLUMN last_review_at TEXT;
+      CREATE TABLE push_subscriptions (endpoint TEXT PRIMARY KEY, subscription_json TEXT NOT NULL, created_at TEXT NOT NULL);
+      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      PRAGMA user_version = 9; COMMIT;`)
   } catch (error) {
     db.exec('ROLLBACK')
     throw error

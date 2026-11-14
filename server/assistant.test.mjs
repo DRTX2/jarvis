@@ -22,7 +22,7 @@ const ollama = (message, calls = []) => async (url, init) => {
   return new Response(JSON.stringify({ message }), { status: 200 })
 }
 
-test('IA local: sin consentimiento ni cuota, con contexto y herramientas que solo crean propuestas', async (t) => {
+test('IA local: sin consentimiento ni cuota; crear se guarda al instante y borrar o recordar quedan como propuesta', async (t) => {
   const calls = []
   const { request, store } = await setup(t, ollama({ role: 'assistant', content: '', tool_calls: [
     { function: { name: 'propose_task', arguments: { title: 'Estudiar redes', category: 'study', priority: 'rara', estimatedMinutes: 45, dueAt: '2026-10-22T18:00:00-05:00' } } },
@@ -40,11 +40,13 @@ test('IA local: sin consentimiento ni cuota, con contexto y herramientas que sol
   assert.match(prompt, /2026-10-21T14:30-05:00 \(America\/Bogota\)/)
   assert.match(prompt, /Pendiente existente/)
   assert.match(prompt, /"equipo"/)
-  assert.equal(data.proposals.tasks[0].task.priority, 'normal', 'un valor inválido del modelo se corrige, no se guarda')
-  assert.equal(data.proposals.tasks[0].task.dueAt, '2026-10-22T23:00:00.000Z')
-  assert.match(data.reply.content, /Crear «Estudiar redes» · 45 min · aviso/)
+  assert.equal(data.applied[0].action, 'created')
+  assert.equal(data.applied[0].task.priority, 'normal', 'un valor inválido del modelo se corrige, no se guarda')
+  assert.equal(data.applied[0].task.dueAt, '2026-10-22T23:00:00.000Z')
+  assert.match(data.reply.content, /Ya quedó guardado:\n• Creé «Estudiar redes» · aviso/)
   assert.match(data.reply.content, /No encontré esa tarea/)
-  assert.equal(store.listTasks().length, 1, 'nada se crea sin confirmar')
+  assert.equal(store.listTasks().length, 2, 'crear es reversible: se aplica al instante')
+  assert.equal(data.proposals.tasks.length, 0)
   assert.equal((await request('/chat/proposals')).data.memories.length, 1)
   assert.equal((await request('/health')).data.dailyRequests, 0)
 })
@@ -106,8 +108,8 @@ test('IA local: si la respuesta olvida la herramienta en un pedido de acción, u
   const { data } = await request('/chat', 'POST', { message: 'recuérdame repasar derivadas y dame tips', timeZone: 'UTC' })
   assert.equal(calls.length, 2)
   assert.match(calls[1].messages[0].content, /Tu única tarea/)
-  assert.equal(data.proposals.tasks[0].task.title, 'Repasar derivadas')
-  assert.match(data.reply.content, /^Claro, aquí tienes tres consejos\.\n\nTe dejo esto para confirmar:/)
+  assert.equal(data.applied[0].task.title, 'Repasar derivadas')
+  assert.match(data.reply.content, /^Claro, aquí tienes tres consejos\.\n\nYa quedó guardado:\n• Creé «Repasar derivadas»/)
   calls.length = 0; replies.splice(0, 2, { role: 'assistant', content: 'Hola' })
   await request('/chat', 'POST', { message: 'explícame la recursión' })
   assert.equal(calls.length, 1, 'sin intención de acción no hay pasada extra')
@@ -124,7 +126,7 @@ test('nube (Claude): herramientas, bloques reenviados sin cambios, fallbacks y c
   const calls = []
   const { request, store } = await setup(t, anthropic([
     { stop_reason: 'tool_use', content: [thinking, { type: 'tool_use', id: 'toolu_1', name: 'propose_task', input: { title: 'Repasar derivadas', dueAt: '2026-10-22T20:00:00-05:00' } }, { type: 'tool_use', id: 'toolu_2', name: 'propose_memory', input: { title: '' } }] },
-    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Te la dejo lista para confirmar. Tres consejos: …' }] },
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Listo, te aviso. Tres consejos: …' }] },
   ], calls), { provider: 'claude', anthropicApiKey: 'clave-falsa', termsAccepted: true, maxDailyRequests: 1 })
   const health = (await request('/health')).data
   assert.equal(health.provider, 'claude'); assert.equal(health.model, 'claude-opus-5-5')
@@ -143,9 +145,8 @@ test('nube (Claude): herramientas, bloques reenviados sin cambios, fallbacks y c
   assert.deepEqual(calls[1].body.messages.at(-1).content.map((item) => item.tool_use_id), ['toolu_1', 'toolu_2'], 'un tool_result por cada tool_use, en un solo mensaje')
   assert.match(calls[1].body.messages.at(-1).content[1].content, /Datos no válidos/)
   assert.equal(data.reply.provider, 'claude')
-  assert.match(data.reply.content, /^Te la dejo lista para confirmar\. Tres consejos: …\n\nTe dejo esto para confirmar:\n• Crear «Repasar derivadas»/)
-  assert.equal(data.proposals.tasks[0].task.dueAt, '2026-10-23T01:00:00.000Z')
-  assert.equal(store.listTasks().length, 0, 'nada se crea sin confirmar')
+  assert.match(data.reply.content, /^Listo, te aviso\. Tres consejos: …\n\nYa quedó guardado:\n• Creé «Repasar derivadas»/)
+  assert.equal(store.listTasks()[0].dueAt, '2026-10-23T01:00:00.000Z')
   const limited = await request('/chat', 'POST', { message: 'otra' })
   assert.equal(limited.status, 429); assert.equal(calls.length, 2, 'la cuota se comprueba antes de llamar')
 })
@@ -181,15 +182,27 @@ test('nube: una negativa o una clave inválida no guardan nada', async (t) => {
   assert.equal((await request('/chat')).data.messages.length, 0)
 })
 
-test('no se duplican propuestas que ya esperan confirmación', async (t) => {
-  const update = { function: { name: 'propose_task_update', arguments: { taskId: 1, action: 'complete' } } }
-  const { request, store } = await setup(t, ollama({ role: 'assistant', content: '', tool_calls: [update, { function: { name: 'propose_task', arguments: { title: 'Leer' } } }] }))
+test('acciones por chat: completar al instante, repetir, sin duplicados y propuestas que no se repiten', async (t) => {
+  const tool = (name, args) => ({ function: { name, arguments: args } })
+  const queue = [
+    [tool('propose_task_update', { taskId: 1, action: 'complete' }), tool('propose_task', { title: 'Leer', dueAt: '2026-10-22T07:00:00-05:00', repeat: 'daily' })],
+    [tool('propose_task', { title: 'leer' }), tool('propose_task_update', { taskId: 1, action: 'delete' })],
+    [tool('propose_task_update', { taskId: 1, action: 'delete' })],
+  ]
+  let turn = 0
+  const { request, store } = await setup(t, async () => new Response(JSON.stringify({ message: { role: 'assistant', content: '', tool_calls: queue[Math.floor(turn++ / 2)] } }), { status: 200 }))
   store.createTask({ title: 'Presentación', category: 'work', priority: 'high', dueAt: null })
-  const first = (await request('/chat', 'POST', { message: 'ya terminé la presentación y quiero leer' })).data
-  assert.equal(first.proposals.tasks.length, 2)
-  const second = (await request('/chat', 'POST', { message: 'soy ingeniero' })).data
-  assert.equal(second.proposals.tasks.length, 0, 'la misma acción pendiente no se vuelve a proponer')
-  assert.equal((await request('/chat/proposals')).data.tasks.length, 2)
+  const first = (await request('/chat', 'POST', { message: 'ya terminé la presentación; recuérdame leer cada día a las 7am', timeZone: 'America/Bogota' })).data
+  assert.deepEqual(first.applied.map((item) => item.action), ['completed', 'created'])
+  assert.equal(store.getTask(1).done, true)
+  assert.equal(store.listTasks().find((task) => task.title === 'Leer').repeat, 'daily')
+  assert.match(first.reply.content, /Completé «Presentación»[\s\S]*se repite cada día/)
+  const second = (await request('/chat', 'POST', { message: 'añade leer y borra la presentación' })).data
+  assert.equal(second.applied.length, 0, 'no duplica una tarea pendiente con el mismo título')
+  assert.equal(second.proposals.tasks[0].action, 'delete', 'borrar siempre requiere confirmación')
+  const third = (await request('/chat', 'POST', { message: 'borra la presentación' })).data
+  assert.equal(third.proposals.tasks.length, 0, 'la misma acción pendiente no se vuelve a proponer')
+  assert.equal(store.getTask(1).done, true)
 })
 
 test('configuración: informa si Ollama está activo y si el modelo está descargado', async (t) => {

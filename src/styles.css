@@ -316,3 +316,8 @@ input[type=checkbox] { accent-color: var(--accent); }
 .setup-panel li.ok svg { color: var(--accent); }
 .setup-panel li.todo svg, .setup-alert svg { color: var(--gold); }
 .setup-alert { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--gold); }
+.reminder-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.notice-strip { border: 1px dashed var(--line, #8884); border-radius: 7px; padding: 12px 16px; margin: 12px 0; }
+.notice-strip h2 { font-size: 13px; }
+.applied-actions { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; padding: 10px 14px; border-radius: 7px; background: #3c8a5a14; border: 1px solid #3c8a5a40; }
+.applied-actions div { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; }

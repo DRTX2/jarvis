@@ -42,11 +42,11 @@ Cada hito termina con un criterio de salida medible. No se empieza el siguiente 
 - **Streaming de respuestas** y voz manos libres (escuchar → responder → volver a escuchar).
 - **Dictado local con Whisper** en la GPU: funciona en Firefox y móvil, y el audio no sale del equipo.
 - **Briefing diario proactivo:** al abrir, «hoy tienes X, repasa Y, tu equipo está Z».
-- **Notificaciones push** (PWA + service worker) para avisos con la app cerrada.
+- ✅ **Notificaciones push** (PWA + service worker) y de escritorio para avisos con la app cerrada, con «Hecho», posponer y tareas repetidas (v0.3, 14/11/2026).
 - *Salida:* p50 del primer token < 2 s; ≥ 90 % de propuestas aceptadas sin editar en 2 semanas de uso real.
 
 ### H2 · «Tutor que demuestra resultados»
-- Repetición espaciada **FSRS** en lugar del calendario fijo 1-3-7-14-30.
+- ✅ Repetición espaciada **FSRS-5** en lugar del calendario fijo 1-3-7-14-30 (v0.3, 14/11/2026; pesos por defecto).
 - Mazos generados desde materiales propios, con citas comprobadas (ya existe la base).
 - Evaluación de **transferencia** con rúbrica y desacuerdo del estudiante.
 - Rutas por objetivo con prerrequisitos y mapa de lagunas.
@@ -90,6 +90,7 @@ El modo híbrido es lo que abre el mercado más allá del nicho con GPU, sin ren
 ## 7. Lo que no haría todavía
 
 - Ejecutar comandos libres o controlar el equipo de forma autónoma.
+- Aplicar sin confirmación algo que no se pueda deshacer: desde v0.3 solo crear, completar y reabrir tareas se aplican al instante, siempre con «Deshacer».
 - Enjambres de agentes o varios modelos a la vez.
 - Diagnósticos de salud física o mental, o promesas de «volverte un genio».
 - Gamificación con castigos por romper rachas.

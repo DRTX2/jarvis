@@ -5,8 +5,10 @@ export type Task = {
   id: number; title: string; category: Category; priority: Priority
   done: boolean; dueAt: string | null; createdAt: string
   estimatedMinutes: number; completedAt: string | null; version: number
+  repeat?: Repeat | null; snoozedUntil?: string | null
 }
-export type TaskInput = Pick<Task, 'title' | 'category' | 'priority' | 'dueAt' | 'estimatedMinutes'>
+export type Repeat = 'daily' | 'weekdays' | 'weekly'
+export type TaskInput = Pick<Task, 'title' | 'category' | 'priority' | 'dueAt' | 'estimatedMinutes' | 'repeat'>
 export type Profile = { name: string; goal: string; tone: 'cercano' | 'directo' | 'tranquilo' }
 export type Message = { id: number; role: 'user' | 'assistant'; content: string; provider: string; createdAt: string; context?: { memories: { id: string; title: string; version: number }[] } | null }
 export type Health = {
@@ -16,7 +18,7 @@ export type Health = {
 }
 export type StudyCard = {
   id: string; topic: string; question: string; hint: string; answer: string
-  checkpoints: string[]; source: string | null; stage: number; nextReviewAt: string | null
+  checkpoints: string[]; source: string | null; stage: number; nextReviewAt: string | null; recall?: number | null; stability?: number | null
   revision: number; generated: boolean
   references?: Reference[]
 }
@@ -81,7 +83,8 @@ export type Device = {
   tips: string[]
 }
 export type Setup = { provider: Health['provider']; gpu: { name: string; vramGb: number } | null; ollama: { url: string; running: boolean; model: string; modelReady: boolean }; cloud: string | null }
-export type ChatReply = { reply: Message; messages: Message[]; proposals: { tasks: TaskProposal[]; memories: MemoryProposal[] } | null }
+export type AppliedAction = { action: 'created' | 'completed' | 'reopened'; task: Task; previous?: Task }
+export type ChatReply = { reply: Message; messages: Message[]; proposals: { tasks: TaskProposal[]; memories: MemoryProposal[] } | null; applied?: AppliedAction[] }
 export type Data = {
   profile: Profile; tasks: Task[]; messages: Message[]; reminders: Task[]; study: Study; health: Health
   daily: Daily; weekly: Weekly | null

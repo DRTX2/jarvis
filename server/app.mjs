@@ -11,6 +11,7 @@ import { contextSchema, feedbackSchema, materialSchema, groundedSchema, parseAI,
 import { proposedTaskSchema, taskApprovalSchema, sessionSchema } from './coach.mjs'
 import { memorySchema } from './memory.mjs'
 import { knowledgeSchema } from './knowledge.mjs'
+import { repeats } from './reminders.mjs'
 import { goalSchema } from './goals.mjs'
 
 const date = z.string().datetime({ offset: true }).transform((value) => new Date(value).toISOString())
@@ -20,12 +21,20 @@ const taskFields = {
   priority: z.enum(['high', 'normal', 'low']),
   dueAt: date.nullable(),
   estimatedMinutes: z.number().int().min(5).max(240),
+  repeat: z.enum(repeats).nullable(),
 }
 const taskSchema = z.object(taskFields).extend({
   category: taskFields.category.default('personal'),
   priority: taskFields.priority.default('normal'),
   dueAt: taskFields.dueAt.default(null),
   estimatedMinutes: taskFields.estimatedMinutes.default(25),
+  repeat: taskFields.repeat.default(null),
+}).strict().refine((task) => !task.repeat || task.dueAt, { message: 'Para repetir una tarea, ponle un aviso.', path: ['repeat'] })
+const snoozeSchema = z.object({ minutes: z.number().int().min(5).max(24 * 60) }).strict()
+const pushSchema = z.object({
+  endpoint: z.string().url().max(2000).refine((value) => value.startsWith('https://'), 'El servicio push debe usar HTTPS.'),
+  expirationTime: z.number().nullable().optional(),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
 }).strict()
 // Los valores por defecto son solo para creación: un PATCH no debe borrar
 // prioridad, área o fecha cuando cambia únicamente el estado completado.
@@ -94,7 +103,7 @@ export function createApp(options = {}) {
 
   app.get('/api/health', (_req, res) => res.json({
     provider, externalAIEnabled, model: { ollama: config.ollamaModel, gemini: config.model, claude: config.claudeModel }[provider] ?? null,
-    cloud: cloudEnabled ? { provider: 'claude', model: config.claudeModel } : null, storage: 'sqlite', reminders: 'in-app-only',
+    cloud: cloudEnabled ? { provider: 'claude', model: config.claudeModel } : null, storage: 'sqlite', reminders: 'desktop-push',
     dailyRequests: store.aiUsage(), maxDailyRequests: config.maxDailyRequests,
   }))
   app.get('/api/device', async (_req, res) => res.json({ device: await deviceSnapshot() }))
@@ -161,6 +170,19 @@ export function createApp(options = {}) {
     const acknowledged = store.acknowledgeReminder(id(req.params.id))
     res.status(acknowledged ? 200 : 404).json(acknowledged ? { ok: true } : { error: 'No se encontró la tarea.' })
   })
+  app.post('/api/reminders/:id/snooze', (req, res) => {
+    const task = store.snoozeReminder(id(req.params.id), snoozeSchema.parse(req.body).minutes)
+    res.status(task ? 200 : 404).json(task ? { task } : { error: 'No se encontró la tarea.' })
+  })
+  // Avisos con la app cerrada: el navegador entrega la suscripción push; la clave privada no sale del equipo.
+  app.get('/api/push', (_req, res) => res.json({ publicKey: store.vapidKeys().publicKey, devices: store.pushSubscriptions().length }))
+  app.post('/api/push', (req, res) => { store.savePushSubscription(pushSchema.parse(req.body)); res.status(201).json({ ok: true }) })
+  app.delete('/api/push', (req, res) => res.json({ removed: store.deletePushSubscription(z.object({ endpoint: z.string().max(2000) }).parse(req.body).endpoint) }))
+  app.post('/api/push/test', async (_req, res) => {
+    const message = { title: 'Jarvis: aviso de prueba', body: 'Así te llegarán los recordatorios, también con la app cerrada.', tag: 'jarvis-prueba' }
+    const results = await Promise.all((options.notifiers ?? []).map((notify) => notify(message).catch(() => false)))
+    res.json({ delivered: results.some(Boolean) })
+  })
   app.get('/api/chat', (_req, res) => res.json({ messages: store.messages() }))
   app.delete('/api/chat', (_req, res) => { store.clearMessages(); res.json({ ok: true }) })
   app.post('/api/chat', async (req, res) => {
@@ -176,9 +198,9 @@ export function createApp(options = {}) {
     if (externalAIEnabled && !store.reserveAIRequest(config.maxDailyRequests)) {
       return res.status(429).json({ error: 'Se alcanzó el límite diario de solicitudes. Tus tareas y repasos siguen disponibles. El límite se reinicia a las 00:00 UTC.' })
     }
-    let reply, proposals = null
+    let reply, proposals = null, applied = []
     try {
-      if (backend === 'ollama' || backend === 'claude') ({ reply, proposals } = await assistantReply(store, message, timeZone, config, options.fetchImpl, options.clock, backend === 'claude' ? claudeChat : ollamaChat))
+      if (backend === 'ollama' || backend === 'claude') ({ reply, proposals, applied } = await assistantReply(store, message, timeZone, config, options.fetchImpl, options.clock, backend === 'claude' ? claudeChat : ollamaChat))
       else reply = externalAIEnabled ? await geminiReply(message, config, options.fetchImpl, chosenContext) : demoReply(message, store)
     }
     catch (error) {
@@ -186,7 +208,7 @@ export function createApp(options = {}) {
       return res.status(error.status === 429 ? 429 : 502).json({ error: (error.name !== 'TimeoutError' ? error.message : backend === 'ollama' ? 'La IA local tardó demasiado. Puede estar cargando el modelo: vuelve a intentar.' : 'La IA tardó demasiado. Puedes volver a intentar; la solicitud cuenta para el límite.') + hint })
     }
     const response = store.saveConversation(message, reply, backend, chosenContext?.memories?.length ? { memories: chosenContext.memories.map(({ id, title, version }) => ({ id, title, version })) } : null)
-    res.json({ reply: response, messages: store.messages(), proposals })
+    res.json({ reply: response, messages: store.messages(), proposals, applied })
   })
   app.get('/api/study', (_req, res) => res.json(store.study()))
   app.post('/api/study/review', (req, res) => {

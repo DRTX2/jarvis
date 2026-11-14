@@ -255,7 +255,7 @@ test('migración v1 a v2 conserva perfil, tareas y mensajes; no inventa finaliza
     assert.equal(old.estimatedMinutes, 25)
     assert.equal(old.completedAt, null)
     assert.equal(store.db.prepare('SELECT COUNT(*) AS count FROM task_completions').get().count, 0)
-    assert.equal(store.db.prepare('PRAGMA user_version').get().user_version, 8)
+    assert.equal(store.db.prepare('PRAGMA user_version').get().user_version, 9)
     store.close()
     store = createStore(path)
     assert.equal(store.listTasks().length, 1)

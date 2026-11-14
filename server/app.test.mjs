@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { request as httpRequest } from 'node:http'
 import { createApp } from './app.mjs'
 import { createStore } from './store.mjs'
-import { nextReview } from './study.mjs'
+import { legacyState, nextReview, retrievability } from './study.mjs'
 
 async function setup(t, options = {}) {
   const { app, store } = createApp({ databasePath: ':memory:', ...options })
@@ -33,7 +33,7 @@ test('la base arranca en modo demo sin enviar información externa', async (t) =
   const { data } = await request('/health')
   assert.equal(data.provider, 'demo')
   assert.equal(data.externalAIEnabled, false)
-  assert.equal(data.reminders, 'in-app-only')
+  assert.equal(data.reminders, 'desktop-push')
   assert.equal(data.apiKey, undefined)
 })
 
@@ -135,11 +135,21 @@ test('el repaso requiere una respuesta y guarda autoevaluación y próximo inter
   assert.ok(new Date(result.data.schedule.nextReviewAt) > new Date())
 })
 
-test('los intervalos son reproducibles y tienen un límite explícito', () => {
-  const now = new Date('2026-01-01T00:00:00.000Z')
-  assert.deepEqual(nextReview('again', 4, now), { stage: 0, nextReviewAt: '2026-01-01T00:10:00.000Z' })
-  assert.deepEqual(nextReview('good', 0, now), { stage: 1, nextReviewAt: '2026-01-02T00:00:00.000Z' })
-  assert.deepEqual(nextReview('good', 5, now), { stage: 5, nextReviewAt: '2026-01-31T00:00:00.000Z' })
+test('repaso adaptativo FSRS: reproducible, crece al acertar, vuelve pronto al olvidar y migra el plan fijo', () => {
+  const day = 86_400_000
+  let now = new Date('2026-01-01T00:00:00.000Z')
+  const first = nextReview('good', null, now)
+  assert.deepEqual(first, nextReview('good', null, now))
+  assert.equal(first.nextReviewAt, '2026-01-04T00:00:00.000Z')
+  now = new Date(first.nextReviewAt)
+  const second = nextReview('good', first, now)
+  assert.ok(Date.parse(second.nextReviewAt) - now.getTime() > 3 * day, 'acertar a tiempo amplía el intervalo')
+  const lapse = nextReview('again', second, new Date(second.nextReviewAt))
+  assert.equal(Date.parse(lapse.nextReviewAt) - Date.parse(second.nextReviewAt), 10 * 60_000)
+  assert.ok(lapse.stability < second.stability && lapse.difficulty > second.difficulty)
+  assert.ok(Date.parse(nextReview('good', { stability: 9000, difficulty: 1, lastReviewAt: now.toISOString() }, new Date(now.getTime() + 9000 * day)).nextReviewAt) - now.getTime() <= 9366 * day, 'máximo un año')
+  assert.deepEqual(legacyState(3, '2026-01-08T00:00:00.000Z'), { stability: 7, difficulty: 5, lastReviewAt: '2026-01-01T00:00:00.000Z' })
+  assert.equal(retrievability(7, 7).toFixed(2), '0.90')
 })
 
 test('impide escrituras desde un origen externo y solicitudes con un host ajeno', async (t) => {

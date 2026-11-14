@@ -11,7 +11,10 @@ const material = { topic: 'Redes', question: '¿Qué distingue TCP y UDP?', hint
 const feedback = { strengths: ['Distingues orden.'], gaps: ['Falta explicar datagramas.'], guidance: 'Compara las garantías.', followUp: '¿Qué elegirías para un juego y por qué?', uncertainty: 'Una respuesta breve no demuestra dominio.' }
 
 function removeVersionEight(db) {
-  db.exec(`DROP TABLE goals; DROP TABLE goal_tasks; DROP TABLE sourced_proposals;
+  db.exec(`ALTER TABLE tasks DROP COLUMN repeat; ALTER TABLE tasks DROP COLUMN snoozed_until; ALTER TABLE tasks DROP COLUMN notified_at;
+    ALTER TABLE reviews DROP COLUMN stability; ALTER TABLE reviews DROP COLUMN difficulty; ALTER TABLE reviews DROP COLUMN last_review_at;
+    DROP TABLE push_subscriptions; DROP TABLE settings;
+    DROP TABLE goals; DROP TABLE goal_tasks; DROP TABLE sourced_proposals;
     ALTER TABLE memories DROP COLUMN origin; ALTER TABLE memories DROP COLUMN valid_until;
     ALTER TABLE memories DROP COLUMN created_at; ALTER TABLE memories DROP COLUMN source_text;
     ALTER TABLE memory_proposals DROP COLUMN source_text; ALTER TABLE messages DROP COLUMN context_json;
@@ -163,7 +166,7 @@ test('migración v5 preserva recuerdos y propuestas antiguas y puede repetirse',
     assert.equal(store.getTask(task.id).title, 'Anterior')
     assert.equal(store.pendingTaskProposals()[0].id, proposal.id)
     assert.equal(store.approveTaskProposal(proposal.id, proposal.task).title, 'Cambio pendiente')
-    assert.equal(store.db.prepare('PRAGMA user_version').get().user_version, 8)
+    assert.equal(store.db.prepare('PRAGMA user_version').get().user_version, 9)
   } finally { store.close() }
 })
 
@@ -431,7 +434,7 @@ test('el ciclo de estudio sobrevive al cierre y reapertura del archivo SQLite', 
     store = createStore(path)
     assert.deepEqual(store.sessions()[0].session, session)
     assert.equal(store.approveTaskProposal(proposal.id, proposal.task).title, 'Practicar')
-    assert.equal(store.db.prepare('PRAGMA user_version').get().user_version, 8)
+    assert.equal(store.db.prepare('PRAGMA user_version').get().user_version, 9)
   } finally {
     store?.close()
     for (const file of readdirSync(directory)) unlinkSync(join(directory, file))
