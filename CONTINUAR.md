@@ -8,7 +8,7 @@
 3. `npm run check`: todo en verde antes de tocar nada.
 4. `npm run dev` y abre http://127.0.0.1:5173.
 5. `git push` funciona por HTTPS con la cuenta DRTX2 de `gh`, sin SSH.
-6. Claude Code: `claude -c` en esta carpeta. El historial está en `docs/historial/` (índice en su README).
+6. Claude Code: `claude -c` en esta carpeta. Conversaciones y copia de la memoria en `docs/historial/` (índice en su README, fuera de git).
 
 ## Estado: H1 «se siente como Jarvis» terminado en código
 | Versión | Qué trajo |

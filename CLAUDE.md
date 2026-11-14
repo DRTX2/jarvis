@@ -57,4 +57,4 @@ Estado actual, decisiones pendientes y siguiente paso: @CONTINUAR.md
 `README.md` (uso, corto), `docs/historial-de-versiones.md` (detalle técnico v0.1–v0.2), `docs/critica-2026-11-14.md` (crítica pendiente de tratar), `ROADMAP_PRODUCTO.md` (hitos H1–H5), `MERCADO_INICIAL.md` (mercado, precios, costos), `PLAN_JARVIS.md` (visión original), `EVALUACION_PRODUCTO_JARVIS.md`, `FUENTES_Y_BASE_CONOCIMIENTOS.md`. Conversaciones anteriores en `docs/historial/` (privado, fuera de git).
 
 ## Al cerrar una sesión de trabajo
-Actualiza `CONTINUAR.md` (qué cambió, qué sigue) y, si cambió una decisión, `ROADMAP_PRODUCTO.md` o `MERCADO_INICIAL.md`. Para guardar la conversación: `node scripts/transcript.mjs <sesión.jsonl> docs/historial/<fecha>-<tema>.md`.
+Actualiza `CONTINUAR.md` (qué cambió, qué sigue) y, si cambió una decisión, `ROADMAP_PRODUCTO.md` o `MERCADO_INICIAL.md`. Guarda la conversación con `node scripts/transcript.mjs <sesión.jsonl> docs/historial/conversaciones/<fecha>-<tema>.md`, copia la memoria a `docs/historial/memoria-claude/` y actualiza el índice `docs/historial/README.md`.
