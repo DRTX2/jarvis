@@ -4,8 +4,37 @@ import type { ApprovedPlan, Daily, Data, Health, Message, PlanInput, PlanProposa
 import type { ChatContext, Feedback, MaterialProposal } from './types'
 import type { AppliedAction, StudySession, TaskProposal } from './types'
 import type { Memory, MemoryProposal, TaskAction, KnowledgeInput } from './types'
-import type { Goal, GoalInput, PracticePlan, ChatReply, Device, Setup } from './types'
+import type { Goal, GoalInput, PracticePlan, ChatReply, Device, Setup, Briefing } from './types'
 import { useDraft } from './useDraft'
+
+// Lee la respuesta del chat línea a línea (NDJSON); sin streaming (demo, Gemini) llega un JSON normal.
+async function streamChat(body: unknown, onText: (text: string | null) => void): Promise<ChatReply> {
+  let response: Response
+  try { response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: json(body) }) }
+  catch { throw new Error('No se pudo conectar con Jarvis. Comprueba que el servidor esté encendido y vuelve a intentar.') }
+  if (!response.headers.get('content-type')?.includes('ndjson') || !response.body) {
+    const result = await response.json().catch(() => ({ error: 'El servidor no devolvió una respuesta válida.' }))
+    if (!response.ok) throw new Error(result.error ?? 'No se pudo completar la operación.')
+    return result as ChatReply
+  }
+  let text = '', buffer = ''
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += value
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines.filter(Boolean)) {
+      const event = JSON.parse(line)
+      if (event.type === 'delta') onText(text += event.text)
+      else if (event.type === 'reset') onText(text = '')
+      else if (event.type === 'error') throw new Error(event.error)
+      else if (event.type === 'done') return event as ChatReply
+    }
+  }
+  throw new Error('La respuesta se cortó antes de terminar. No se guardó contenido parcial; vuelve a intentar.')
+}
 
 const initial: Data = {
   profile: { name: '', goal: '', tone: 'cercano' }, tasks: [], messages: [], reminders: [],
@@ -30,6 +59,8 @@ export function useJarvis() {
   const [hasLoaded, setHasLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // Texto que el asistente está escribiendo ahora mismo (null si no hay respuesta en curso).
+  const [live, setLive] = useState<string | null>(null)
   const [day, setDay] = useState(localDay)
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const generation = useRef(0)
@@ -119,7 +150,13 @@ export function useJarvis() {
     saveProfile: (profile: Profile) => run(() => api('/profile', { method: 'PUT', body: json(profile) })),
     addKnowledge: (material: KnowledgeInput) => run(() => api('/knowledge', { method: 'POST', body: json(material) })),
     deleteKnowledge: (id: string) => run(() => api(`/knowledge/${id}`, { method: 'DELETE' })),
-    sendMessage: async (message: string, consent: boolean, context?: ChatContext, cloud = false) => (await perform(() => api<ChatReply>('/chat', { method: 'POST', body: json({ message, consent, context, timeZone, cloud }) })))?.value ?? null,
+    live,
+    sendMessage: async (message: string, consent: boolean, context?: ChatContext, cloud = false) => {
+      setLive('')
+      try { return (await perform(() => streamChat({ message, consent, context, timeZone, cloud, stream: true }, setLive)))?.value ?? null }
+      finally { setLive(null) }
+    },
+    loadBriefing: () => api<{ briefing: Briefing }>(`/briefing?timeZone=${encodeURIComponent(timeZone)}`).then((result) => result.briefing),
     loadDevice: () => api<{ device: Device }>('/device').then((result) => result.device),
     loadSetup: () => api<{ setup: Setup }>('/setup').then((result) => result.setup),
     saveMemory: (input: { title: string; content: string; origin?: string; validUntil?: string | null }, memory?: Memory) => run(() => api(memory ? `/memories/${memory.id}` : '/memories', { method: memory ? 'PUT' : 'POST', body: json(memory ? { ...input, expectedVersion: memory.version } : input) })),

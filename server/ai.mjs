@@ -46,7 +46,7 @@ export async function geminiReply(message, config, fetchImpl = fetch, context = 
 }
 
 // Ollama local: los datos no salen del equipo, por eso no exige consentimiento ni cuota.
-export async function ollamaChat(messages, config, fetchImpl = fetch, { tools, json = false, think = Boolean(tools) } = {}) {
+export async function ollamaChat(messages, config, fetchImpl = fetch, { tools, json = false, think = Boolean(tools), onDelta } = {}) {
   let response
   // Un reintento: Ollama responde 500 cuando el modelo emite una llamada a herramienta malformada.
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -55,7 +55,7 @@ export async function ollamaChat(messages, config, fetchImpl = fetch, { tools, j
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(120_000),
         body: JSON.stringify({
-          model: config.ollamaModel, messages, stream: false, think, keep_alive: '30m',
+          model: config.ollamaModel, messages, stream: Boolean(onDelta), think, keep_alive: '30m',
           options: { num_ctx: 8192, temperature: json ? 0.2 : 0.6 },
           ...(tools ? { tools } : {}), ...(json ? { format: 'json' } : {}),
         }),
@@ -68,9 +68,33 @@ export async function ollamaChat(messages, config, fetchImpl = fetch, { tools, j
   }
   if (response.status === 404) throw Object.assign(new Error(`El modelo «${config.ollamaModel}» no está descargado. Ejecuta: ollama pull ${config.ollamaModel}`), { status: 502 })
   if (!response.ok) throw Object.assign(new Error(`La IA local falló (${response.status}). Vuelve a intentar; no se guardó contenido parcial.`), { status: 502 })
+  if (onDelta) return readStream(response, onDelta)
   const payload = await response.json()
   if (!payload.message) throw Object.assign(new Error('Ollama no devolvió una respuesta. No se guardó contenido parcial.'), { status: 502 })
   return payload.message
+}
+
+// Ollama transmite una línea JSON por fragmento: el texto llega a `onDelta` según se genera.
+async function readStream(response, onDelta) {
+  const message = { role: 'assistant', content: '', tool_calls: [] }
+  const handle = (line) => {
+    if (!line.trim()) return
+    const part = JSON.parse(line)
+    if (part.error) throw Object.assign(new Error(`La IA local falló: ${part.error}. No se guardó contenido parcial.`), { status: 502 })
+    if (part.message?.content) { message.content += part.message.content; onDelta(part.message.content) }
+    if (part.message?.tool_calls) message.tool_calls.push(...part.message.tool_calls)
+  }
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for await (const chunk of response.body) {
+    buffer += decoder.decode(chunk, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop()
+    lines.forEach(handle)
+  }
+  handle(buffer + decoder.decode())
+  if (!message.tool_calls.length) delete message.tool_calls
+  return message
 }
 
 export async function chatReply(chat, message, config, fetchImpl, context = null, structured = false) {

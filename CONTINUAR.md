@@ -1,14 +1,25 @@
 # Continuar Jarvis
 
-**Última sesión:** 14/11/2026 · **Versión:** v0.3 · **Esquema SQLite:** v9 · **Pruebas:** 73 unitarias y 48 e2e en verde · **Repositorio:** https://github.com/DRTX2/jarvis (privado)
+**Última sesión:** 14/11/2026 · **Versión:** v0.4 · **Esquema SQLite:** v9 · **Pruebas:** 76 unitarias y 50 e2e en verde · **Repositorio:** https://github.com/DRTX2/jarvis (privado)
 
 ## Para retomar (5 minutos)
-1. `ollama serve` (si no corre como servicio) y `ollama list`: debe aparecer `qwen3.5:9b`.
+1. **Ollama:** `sudo systemctl enable --now ollama` y `ollama list` (debe aparecer `qwen3.5:9b`). En este PC, `/usr/local/bin/ollama` es una versión vieja (0.32.3) que tapa a la buena (`/usr/bin/ollama`, 0.40.16) y falla con «llama-server binary not found»: bórrala con `sudo rm /usr/local/bin/ollama`.
 2. `npm ci` y `npx playwright install chromium`: el sistema limpia cachés y el 14/11 faltaban los dos.
 3. `npm run check`: todo en verde antes de tocar nada.
 4. `npm run dev` y abre http://127.0.0.1:5173.
 5. `git push` funciona por HTTPS con la cuenta DRTX2 de `gh` (sin SSH). Si cambias de cuenta activa en `gh`, el push falla.
 6. Para seguir con Claude Code: `claude -c` en esta carpeta. Las conversaciones guardadas están en `docs/historial/`.
+
+## Qué cambió el 14/11, segunda parte (v0.4)
+- **Streaming:** las respuestas se escriben en vivo. Medido con IA real: primer texto en 0,5–1,8 s en conversación y unos 6–10 s cuando pides una acción, porque razona antes.
+- **Briefing diario** en Hoy y como aviso a las 8:00: avisos de hoy, atrasados, repasos, próximo aviso y días para tu meta.
+- **Conversación por voz manos libres** (botón de ondas en el chat; di «para» para terminar).
+- **Copias automáticas diarias** en `data/backups/` (últimas 7).
+- **Calidad con IA real:**
+  - Sin intención de acción, el modelo no recibe herramientas: antes inventaba tareas.
+  - Detecta «ya llamé / ya terminé».
+  - Avisa si dice que guardó algo sin hacerlo.
+  - El estado del equipo solo entra al contexto si preguntas por él.
 
 ## Qué cambió el 14/11 (v0.3)
 - **Recordatorios que suenan:** notificación de escritorio (`notify-send`) y Web Push cifrado a los navegadores suscritos, con «Hecho» y «En 10 min». También hay tareas repetidas (cada día, entre semana, cada semana) y un resumen si se acumulan varios avisos.
@@ -29,10 +40,10 @@
 4. **Crítica pendiente** (puntos 5 a 7: barrera de instalación, medir aprendizaje, puntos técnicos): `docs/critica-2026-11-14.md`.
 
 ## Siguiente paso recomendado
-Lo que queda de H1 «se siente como Jarvis», en este orden:
-1. **Streaming de respuestas** (`stream: true` en `ollamaChat` y fragmentos al navegador). Meta: primer token en menos de 2 s.
-2. **Voz manos libres** y **dictado local con Whisper**.
-3. **Briefing diario** al abrir (los avisos de repaso ya existen; falta el resumen del día).
+1. **Usarlo a diario** (sigue siendo lo más importante).
+2. **Dictado local con Whisper** (whisper.cpp en la GPU): voz en Firefox y móvil sin que el audio salga del equipo. Es lo único de H1 que falta.
+3. **Evaluación de la IA:** un conjunto de 30–50 mensajes reales con la acción esperada, para medir el «% de acciones correctas» antes de cambiar prompts o modelo.
+4. **Streaming también en la nube** (`client.messages.stream` en `claudeChat`); hoy Claude entrega la respuesta completa al final.
 
 ## Límites conocidos
 - Los avisos solo salen con Jarvis encendido.
@@ -42,7 +53,9 @@ Lo que queda de H1 «se siente como Jarvis», en este orden:
 - Deshacer un «completar» deja el registro histórico del cierre.
 - FSRS usa los pesos por defecto, no ajustados a la persona.
 - Notificaciones de escritorio solo en Linux.
-- Sin streaming, con respuestas de 3–15 s.
+- Con acciones, el primer texto tarda unos 6–10 s (razonamiento). Claude no transmite en vivo.
+- El modelo local a veces no llama a la herramienta (≈1 de cada 6 pedidos de acción en la prueba real): Jarvis lo avisa y hay que repetirlo.
+- Conversación por voz solo en Chrome/Edge y sin probar automáticamente (Playwright no tiene micrófono).
 - Dictado solo en Chrome/Edge.
 - GPU solo NVIDIA.
 - Sin inicio de sesión (con Tailscale, entra cualquiera de tu red).

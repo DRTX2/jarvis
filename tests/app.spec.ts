@@ -621,3 +621,13 @@ test('recordatorios: suenan con acciones, se posponen, se repiten y se activan p
   await expect(page.getByRole('region', { name: 'Avisos en este dispositivo' })).toContainText(/Activar avisos|Bloqueaste las notificaciones/)
   await expect(page.getByRole('region', { name: 'Mi equipo' })).toBeVisible()
 })
+
+test('briefing: Hoy resume tus avisos, atrasos y repasos sin IA', async ({ page, request }) => {
+  await request.post('/api/tasks', { data: { title: 'Entregar informe', dueAt: '2026-10-09T20:00:00.000Z' } })
+  await request.post('/api/tasks', { data: { title: 'Pagar luz', dueAt: '2026-10-07T20:00:00.000Z' } })
+  await page.goto('/')
+  const briefing = page.getByRole('region', { name: 'Tu día en 30 segundos' })
+  await expect(briefing).toContainText('Buenos días.')
+  await expect(briefing).toContainText('Hoy tienes 1 aviso: Entregar informe (15:00).')
+  await expect(briefing).toContainText('Quedó atrasado: Pagar luz.')
+})

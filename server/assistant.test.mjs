@@ -39,7 +39,7 @@ test('IA local: sin consentimiento ni cuota; crear se guarda al instante y borra
   const prompt = calls[0].body.messages.at(-1).content
   assert.match(prompt, /2026-10-21T14:30-05:00 \(America\/Bogota\)/)
   assert.match(prompt, /Pendiente existente/)
-  assert.match(prompt, /"equipo"/)
+  assert.doesNotMatch(prompt, /"equipo"/, 'el estado del equipo solo va cuando se pregunta por él')
   assert.equal(data.applied[0].action, 'created')
   assert.equal(data.applied[0].task.priority, 'normal', 'un valor inválido del modelo se corrige, no se guarda')
   assert.equal(data.applied[0].task.dueAt, '2026-10-22T23:00:00.000Z')
@@ -96,6 +96,10 @@ test('equipo: snapshot de solo lectura y consejos por reglas', async (t) => {
   assert.equal(normalizeDue('2026-10-23T19:00', 'America/Bogota', now), '2026-10-24T00:00:00.000Z', 'sin desfase usa la zona del usuario')
   assert.equal(normalizeDue('mañana', 'America/Bogota', now), undefined)
   assert.equal(normalizeDue(null, 'America/Bogota', now), null, 'null quita el aviso')
+  const calls = []
+  const asked = await setup(t, ollama({ role: 'assistant', content: 'Cierra pestañas.' }, calls))
+  await asked.request('/chat', 'POST', { message: 'mi pc va lento, ¿qué cierro?' })
+  assert.match(calls[0].body.messages.at(-1).content, /"equipo"/, 'preguntar por el equipo sí incluye su estado')
 })
 
 test('IA local: si la respuesta olvida la herramienta en un pedido de acción, una pasada dedicada la extrae', async (t) => {
@@ -213,4 +217,39 @@ test('configuración: informa si Ollama está activo y si el modelo está descar
   assert.equal((await (await setup(t, tags(['qwen3:8b']))).request('/setup')).data.setup.ollama.modelReady, false)
   const down = (await (await setup(t, async () => { throw new TypeError('fetch failed') })).request('/setup')).data.setup
   assert.equal(down.ollama.running, false)
+})
+
+test('streaming: el texto llega por fragmentos, una pasada con herramientas se reinicia y solo se guarda al terminar', async (t) => {
+  const ndjson = (...parts) => new Response(parts.map((part) => JSON.stringify(part)).join('\n'), { status: 200 })
+  const replies = [
+    () => ndjson({ message: { content: 'Hola, ' } }, { message: { content: '¿en qué te ayudo?' } }, { done: true }),
+    () => ndjson({ message: { content: '', tool_calls: [{ function: { name: 'propose_task', arguments: { title: 'Leer' } } }] } }, { done: true }),
+    () => ndjson({ message: { content: 'Listo, ' } }, { message: { content: 'apuntado.' } }, { done: true }),
+    () => ndjson({ message: { content: 'Listo, te lo he guardado.' } }, { done: true }),
+    () => ndjson({ message: { content: '' } }),
+    () => ndjson({ message: { content: 'Me corté' } }, { error: 'model crashed' }),
+  ]
+  const bodies = []
+  const { base, store } = await setup(t, async (_url, init) => { bodies.push(JSON.parse(init.body)); return replies[bodies.length - 1]() })
+  const chat = async (message) => {
+    const response = await fetch(`${base}/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, stream: true, timeZone: 'UTC' }) })
+    assert.match(response.headers.get('content-type'), /application\/x-ndjson/)
+    return (await response.text()).trim().split('\n').map((line) => JSON.parse(line))
+  }
+  const plain = await chat('hola')
+  assert.deepEqual(plain.map((event) => event.type), ['status', 'delta', 'delta', 'done'])
+  assert.equal(plain.at(-1).reply.content, 'Hola, ¿en qué te ayudo?')
+  assert.equal(bodies[0].stream, true)
+  assert.equal(bodies[0].think, false, 'sin pedir acciones no razona: el primer texto llega antes')
+  assert.equal(bodies[0].tools, undefined, 'sin pedir acciones el modelo local no recibe herramientas: no puede inventar tareas')
+  const action = await chat('recuérdame leer')
+  assert.equal(bodies[1].think, true, 'pedir una acción activa el razonamiento para usar herramientas')
+  assert.deepEqual(action.map((event) => event.type), ['status', 'reset', 'delta', 'delta', 'done'])
+  assert.match(action.at(-1).reply.content, /^Listo, apuntado\.\n\nYa quedó guardado:\n• Creé «Leer»/)
+  const lie = await chat('recuérdame algo importante')
+  assert.match(lie.at(-1).reply.content, /^Listo, te lo he guardado\.\n\n⚠️ En realidad no llegué a guardar nada/, 'una afirmación falsa de guardado se corrige')
+  const failed = await chat('otra cosa')
+  assert.deepEqual(failed.map((event) => event.type), ['status', 'delta', 'error'])
+  assert.match(failed.at(-1).error, /model crashed/)
+  assert.equal(store.messages().length, 6, 'la respuesta cortada no se guarda')
 })

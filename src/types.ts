@@ -83,6 +83,7 @@ export type Device = {
   tips: string[]
 }
 export type Setup = { provider: Health['provider']; gpu: { name: string; vramGb: number } | null; ollama: { url: string; running: boolean; model: string; modelReady: boolean }; cloud: string | null }
+export type Briefing = { day: string; greeting: string; lines: string[]; counts: { today: number; overdue: number; reviews: number } }
 export type AppliedAction = { action: 'created' | 'completed' | 'reopened'; task: Task; previous?: Task }
 export type ChatReply = { reply: Message; messages: Message[]; proposals: { tasks: TaskProposal[]; memories: MemoryProposal[] } | null; applied?: AppliedAction[] }
 export type Data = {

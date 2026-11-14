@@ -1,5 +1,6 @@
 import { createApp } from './app.mjs'
 import { desktopNotifier, pushNotifier, startReminders } from './reminders.mjs'
+import { backupDatabase } from './backup.mjs'
 
 process.umask(0o077)
 const notifiers = []
@@ -21,6 +22,11 @@ const { app, store } = createApp({
 // Avisos con la app cerrada: escritorio (notify-send) y push a los navegadores suscritos, cada 30 s.
 notifiers.push(desktopNotifier(), pushNotifier(store))
 const stopReminders = startReminders(store, notifiers)
+// Copia de seguridad al arrancar y cada hora se comprueba si ya toca la del día (data/backups, últimos 7 días).
+const backup = () => { try { backupDatabase(store.db, process.env.DATABASE_PATH ?? './data/jarvis.sqlite') } catch (error) { console.error('Copia de seguridad:', error.message) } }
+backup()
+const backupTimer = setInterval(backup, 3_600_000)
+backupTimer.unref()
 const port = Number(process.env.PORT ?? 3001)
 const server = app.listen(port, '127.0.0.1', () => {
   console.log(`Jarvis API: http://127.0.0.1:${port} · base privada local`)

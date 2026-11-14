@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import webpush from 'web-push'
+import { buildBriefing } from './briefing.mjs'
 
 const DAY = 86_400_000
 export const repeats = ['daily', 'weekdays', 'weekly']
@@ -65,11 +66,11 @@ export function createReminderStore(db, { getTask, clock }) {
 const readable = (value) => new Intl.DateTimeFormat('es', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 
 // Mensajes de aviso: uno por tarea; si se acumulan (equipo apagado), uno solo con el resumen.
-export function reminderMessages(tasks, dueReviews = 0) {
+export function reminderMessages(tasks, briefing = null) {
   const messages = tasks.length > 3
     ? [{ title: `Tienes ${tasks.length} avisos pendientes`, body: tasks.map((task) => task.title).join(' · ').slice(0, 300), tag: 'jarvis-resumen' }]
     : tasks.map((task) => ({ title: task.title, body: `Aviso de ${readable(task.snoozedUntil ?? task.dueAt)}${task.repeat ? ' · se repite' : ''}`, tag: `task-${task.id}`, taskId: task.id }))
-  if (dueReviews) messages.push({ title: `${dueReviews} ${dueReviews === 1 ? 'pregunta lista' : 'preguntas listas'} para repasar`, body: 'Repasar justo antes de olvidar es lo que fija el recuerdo. Te toma unos minutos.', tag: 'jarvis-repasos', url: '/?page=study' })
+  if (briefing) messages.push({ title: briefing.greeting.replace(/\.$/, ': así viene tu día'), body: briefing.lines.join(' ').slice(0, 300), tag: 'jarvis-briefing' })
   return messages
 }
 
@@ -99,19 +100,20 @@ export function pushNotifier(store, send = webpush.sendNotification.bind(webpush
   }
 }
 
-// Repasos: como mucho un aviso al día, desde las 9:00 hora del equipo.
-function dueReviewCount(store, now) {
+// Briefing de la mañana: uno al día desde las 8:00 hora del equipo, solo si hay algo que contar.
+function morningBriefing(store, now) {
   const today = now.toLocaleDateString('sv')
-  if (now.getHours() < 9 || store.setting('reviews-notified') === today) return 0
-  const count = store.study().cards.filter((card) => card.nextReviewAt && Date.parse(card.nextReviewAt) <= now.getTime()).length
-  if (count) store.setSetting('reviews-notified', today)
-  return count
+  if (now.getHours() < 8 || store.setting('briefing-notified') === today) return null
+  store.setSetting('briefing-notified', today)
+  const briefing = buildBriefing(store, Intl.DateTimeFormat().resolvedOptions().timeZone, now)
+  const { today: due, overdue, reviews } = briefing.counts
+  return due || overdue || reviews ? briefing : null
 }
 
 export async function checkReminders(store, notifiers, clock = () => new Date()) {
   const now = clock()
   const tasks = store.unsentReminders(now)
-  const messages = reminderMessages(tasks, dueReviewCount(store, now))
+  const messages = reminderMessages(tasks, morningBriefing(store, now))
   if (!messages.length) return []
   // Se marca antes de enviar: un fallo de red no debe repetir el aviso cada 30 s; el aviso sigue visible dentro de la app.
   store.markNotified(tasks.map((task) => task.id))

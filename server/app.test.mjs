@@ -205,3 +205,27 @@ test('un fallo del proveedor cuenta para el límite y no guarda respuestas ficti
   assert.equal((await request('/health')).data.dailyRequests, 1)
   assert.equal((await request('/chat')).data.messages.length, 0)
 })
+
+test('copias de seguridad: una al día, legibles y solo las 7 más recientes', async () => {
+  const { backupDatabase } = await import('./backup.mjs')
+  const directory = mkdtempSync(join(tmpdir(), 'jarvis-backup-'))
+  const path = join(directory, 'jarvis.sqlite')
+  const store = createStore(path)
+  try {
+    store.createTask({ title: 'Dato importante', category: 'personal', priority: 'normal', dueAt: null })
+    assert.equal(backupDatabase(store.db, ':memory:'), null)
+    const first = backupDatabase(store.db, path, new Date(2026, 10, 1, 9))
+    assert.equal(backupDatabase(store.db, path, new Date(2026, 10, 1, 20)), null, 'una por día')
+    const copy = createStore(first)
+    assert.equal(copy.listTasks()[0].title, 'Dato importante'); copy.close()
+    for (let day = 2; day <= 9; day++) backupDatabase(store.db, path, new Date(2026, 10, day, 9))
+    const kept = readdirSync(join(directory, 'backups')).filter((name) => name.endsWith('.sqlite')).sort()
+    assert.equal(kept.length, 7); assert.equal(kept[0], 'jarvis-2026-11-03.sqlite')
+  } finally {
+    store.close()
+    for (const name of readdirSync(join(directory, 'backups'))) unlinkSync(join(directory, 'backups', name))
+    rmdirSync(join(directory, 'backups'))
+    for (const name of readdirSync(directory)) unlinkSync(join(directory, name))
+    rmdirSync(directory)
+  }
+})

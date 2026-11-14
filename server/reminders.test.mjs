@@ -30,7 +30,8 @@ test('avisos: suenan una vez, se pueden posponer y una tarea repetida sigue viva
   now = new Date('2026-11-16T14:00:00.000Z')
   const { request, store } = await setup(t)
   const sent = []
-  const notify = async (message) => { sent.push(message); return true }
+  // Solo avisos de tareas: el briefing de la mañana tiene su propia prueba.
+  const notify = async (message) => { if (message.taskId) sent.push(message); return true }
   const once = store.createTask({ title: 'Llamar a mamá', category: 'personal', priority: 'normal', dueAt: '2026-11-16T13:59:00.000Z' })
   const daily = store.createTask({ title: 'Repasar derivadas', category: 'study', priority: 'normal', dueAt: '2026-11-16T13:00:00.000Z', repeat: 'daily' })
   store.createTask({ title: 'Más tarde', category: 'personal', priority: 'normal', dueAt: '2026-11-16T20:00:00.000Z' })
@@ -55,18 +56,39 @@ test('avisos: suenan una vez, se pueden posponer y una tarea repetida sigue viva
   assert.equal((await request('/tasks', 'POST', { title: 'Sin fecha', repeat: 'daily' })).status, 400, 'repetir exige un aviso')
 })
 
-test('avisos acumulados se resumen y los repasos vencidos avisan una vez al día desde las 9:00', async (t) => {
-  now = new Date(2026, 10, 16, 10, 0)
+test('avisos acumulados se resumen y el briefing de la mañana sale una vez al día desde las 8:00', async (t) => {
+  now = new Date(2026, 10, 16, 7, 0)
   const { store } = await setup(t)
   for (const title of ['A', 'B', 'C', 'D']) store.createTask({ title, category: 'personal', priority: 'normal', dueAt: new Date(2026, 10, 15, 8).toISOString() })
+  store.createTask({ title: 'Entregar informe', category: 'work', priority: 'high', dueAt: new Date(2026, 10, 16, 17).toISOString() })
   store.review('http-purpose', 'respuesta', 'again')
-  now = new Date(2026, 10, 16, 10, 30)
   const sent = []
-  await checkReminders(store, [async (message) => { sent.push(message); return true }], clock)
-  assert.deepEqual(sent.map((message) => message.title), ['Tienes 4 avisos pendientes', '1 pregunta lista para repasar'])
-  await checkReminders(store, [async (message) => { sent.push(message); return true }], clock)
-  assert.equal(sent.length, 2, 'el aviso de repasos sale una sola vez al día')
+  const notify = async (message) => { sent.push(message); return true }
+  await checkReminders(store, [notify], clock)
+  assert.deepEqual(sent.map((message) => message.title), ['Tienes 4 avisos pendientes'], 'antes de las 8:00 no hay briefing')
+  now = new Date(2026, 10, 16, 8, 30)
+  await checkReminders(store, [notify], clock)
+  assert.match(sent[1].title, /^Buenos días: así viene tu día$/)
+  assert.match(sent[1].body, /Hoy tienes 1 aviso: Entregar informe \(17:00\)\. Quedaron 4 atrasados: A, B, C y 1 más\. 1 pregunta lista para repasar/)
+  await checkReminders(store, [notify], clock)
+  assert.equal(sent.length, 2, 'el briefing sale una sola vez al día')
   assert.equal(reminderMessages([]).length, 0)
+})
+
+test('briefing: saludo, avisos de hoy, objetivo con fecha y día despejado', async (t) => {
+  now = new Date('2026-11-16T13:00:00.000Z')
+  const { request, store } = await setup(t)
+  store.setProfile({ name: 'Andrés', goal: '', tone: 'cercano' })
+  const empty = (await request('/briefing?timeZone=America/Bogota')).data.briefing
+  assert.equal(empty.greeting, 'Buenos días, Andrés.')
+  assert.match(empty.lines[0], /^Día despejado/)
+  store.createTask({ title: 'Pagar arriendo', category: 'personal', priority: 'normal', dueAt: '2026-11-17T14:00:00.000Z' })
+  assert.equal((await request('/briefing?timeZone=America/Bogota')).data.briefing.lines[0], 'Hoy no tienes avisos. El próximo: Pagar arriendo (martes, 09:00).')
+  store.createTask({ title: 'Llamar al banco', category: 'personal', priority: 'normal', dueAt: '2026-11-16T20:00:00.000Z' })
+  store.saveGoal(null, 0, { title: 'Parcial de cálculo', topic: 'Cálculo', outcome: 'Aprobar', targetDate: '2026-11-28', budgetMinutes: 20, cardIds: [], knowledgeIds: [], steps: [{ id: '00000000-0000-4000-8000-000000000001', title: 'Derivadas', minutes: 25 }] })
+  const full = (await request('/briefing?timeZone=America/Bogota')).data.briefing
+  assert.deepEqual(full.lines, ['Hoy tienes 1 aviso: Llamar al banco (15:00).', 'Faltan 12 días para «Parcial de cálculo».'])
+  assert.equal((await request('/briefing?timeZone=No/Existe')).status, 400)
 })
 
 test('push: clave pública estable, suscripción validada, prueba y limpieza de suscripciones caducadas', async (t) => {

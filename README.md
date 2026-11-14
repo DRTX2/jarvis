@@ -7,14 +7,17 @@ Tu asistente personal en español que vive en tu PC: te recuerda las cosas a tie
 - **Recordatorios que suenan.** Escribe o dicta «recuérdame llamar a mamá el viernes a las 7» o «repasar derivadas todos los días a las 8». El aviso llega como notificación del sistema en tu PC y, si lo activas, en el móvil u otros navegadores, aunque la app esté cerrada. Desde el aviso marcas **Hecho** o lo pospones **10 minutos**. Las tareas pueden repetirse cada día, entre semana o cada semana.
 - **Organízate hablando.** Crear, completar y reabrir tareas se aplica al instante y puedes **deshacerlo** con un clic. Borrar, editar o guardar datos sobre ti te lo pide confirmar.
 - **Estudia con repaso adaptativo.** Cada pregunta tiene su propio ritmo (algoritmo FSRS): si la recuerdas, el siguiente repaso se aleja; si la olvidas, vuelve en 10 minutos. Jarvis te avisa una vez al día cuando hay preguntas por repasar y muestra la probabilidad estimada de que recuerdes cada una.
+- **Tu día en 30 segundos.** Al abrir **Hoy** (y cada mañana a las 8 como aviso): qué te toca hoy, qué quedó atrasado, cuántas preguntas repasar y cuántos días faltan para tu meta. Se calcula al instante, sin IA.
+- **Respuestas que se escriben en vivo.** En una conversación normal el texto empieza a aparecer en menos de 1 s; cuando pides una acción, Jarvis razona unos segundos antes para no equivocarse.
+- **Conversación por voz manos libres** (Chrome y Edge): pulsa el botón de ondas, habla, Jarvis responde en voz alta y vuelve a escucharte. Di «para» para terminar.
 - **Plan del día, objetivos y materiales propios**, en la pestaña **Hoy** y en **Estudiar**.
-- **Voz:** dictado y lectura en voz alta en Chrome y Edge.
 
 ## Empezar
 
 Necesitas Node.js 24 y, para la IA local, [Ollama](https://ollama.com) con una GPU de unos 8 GB.
 
 ```bash
+sudo systemctl enable --now ollama   # una vez: Ollama arranca solo
 ollama pull qwen3.5:9b   # una vez
 npm ci
 npm run dev              # abre http://127.0.0.1:5173
@@ -57,7 +60,7 @@ Con la IA local activa, el botón ☁ del chat envía a la nube solo los mensaje
 
 ## Tus datos
 
-- Todo vive en `data/jarvis.sqlite`. Para hacer una copia, detén Jarvis y copia ese archivo. **Mi perfil → Exportar** descarga un JSON (todavía no hay importador).
+- Todo vive en `data/jarvis.sqlite`. Jarvis guarda una **copia automática diaria** en `data/backups/` (las últimas 7). Para restaurar, detén Jarvis y copia la que quieras sobre `data/jarvis.sqlite`. **Mi perfil → Exportar** descarga un JSON (todavía no hay importador).
 - Sin analítica ni publicidad. Solo salen del equipo los mensajes que envíes a la nube y los avisos push, que viajan cifrados de extremo a extremo: el servicio push de tu navegador no puede leerlos.
 - El servidor solo escucha en `127.0.0.1`. Con `tailscale serve`, cualquier dispositivo de tu red Tailscale puede abrir Jarvis: no hay inicio de sesión.
 

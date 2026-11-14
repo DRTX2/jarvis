@@ -39,9 +39,9 @@ v0.2 desbloquea el núcleo: **IA local real con acceso a tu contexto y capacidad
 Cada hito termina con un criterio de salida medible. No se empieza el siguiente sin cumplirlo.
 
 ### H1 · «Se siente como Jarvis» (siguiente)
-- **Streaming de respuestas** y voz manos libres (escuchar → responder → volver a escuchar).
+- ✅ **Streaming de respuestas** (primer texto <1 s en conversación; ~6–10 s cuando hay acciones) y ✅ voz manos libres con la voz del navegador (v0.4, 14/11/2026).
 - **Dictado local con Whisper** en la GPU: funciona en Firefox y móvil, y el audio no sale del equipo.
-- **Briefing diario proactivo:** al abrir, «hoy tienes X, repasa Y, tu equipo está Z».
+- ✅ **Briefing diario proactivo:** al abrir Hoy y como aviso a las 8:00 (v0.4, 14/11/2026).
 - ✅ **Notificaciones push** (PWA + service worker) y de escritorio para avisos con la app cerrada, con «Hecho», posponer y tareas repetidas (v0.3, 14/11/2026).
 - *Salida:* p50 del primer token < 2 s; ≥ 90 % de propuestas aceptadas sin editar en 2 semanas de uso real.
 

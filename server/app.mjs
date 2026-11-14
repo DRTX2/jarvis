@@ -12,6 +12,7 @@ import { proposedTaskSchema, taskApprovalSchema, sessionSchema } from './coach.m
 import { memorySchema } from './memory.mjs'
 import { knowledgeSchema } from './knowledge.mjs'
 import { repeats } from './reminders.mjs'
+import { buildBriefing } from './briefing.mjs'
 import { goalSchema } from './goals.mjs'
 
 const date = z.string().datetime({ offset: true }).transform((value) => new Date(value).toISOString())
@@ -44,7 +45,7 @@ const profileSchema = z.object({
   name: z.string().trim().max(60), goal: z.string().trim().max(300),
   tone: z.enum(['cercano', 'directo', 'tranquilo']),
 }).strict()
-const chatSchema = z.object({ message: z.string().trim().min(1).max(3000), consent: z.boolean().default(false), context: contextSchema.optional(), timeZone: timeZoneSchema.default('UTC'), cloud: z.boolean().default(false) }).strict()
+const chatSchema = z.object({ message: z.string().trim().min(1).max(3000), consent: z.boolean().default(false), context: contextSchema.optional(), timeZone: timeZoneSchema.default('UTC'), cloud: z.boolean().default(false), stream: z.boolean().default(false) }).strict()
 const reviewSchema = z.object({
   cardId: z.string().min(1).max(80),
   answer: z.string().trim().min(1).max(4000), grade: z.enum(['again', 'good']),
@@ -165,6 +166,7 @@ export function createApp(options = {}) {
     const removed = store.deleteTask(id(req.params.id))
     res.status(removed ? 200 : 404).json(removed ? { ok: true } : { error: 'No se encontró la tarea.' })
   })
+  app.get('/api/briefing', (req, res) => res.json({ briefing: buildBriefing(store, z.object({ timeZone: timeZoneSchema.default('UTC') }).parse(req.query).timeZone, options.clock?.() ?? new Date()) }))
   app.get('/api/reminders', (_req, res) => res.json({ reminders: store.reminders() }))
   app.post('/api/reminders/:id/acknowledge', (req, res) => {
     const acknowledged = store.acknowledgeReminder(id(req.params.id))
@@ -186,7 +188,7 @@ export function createApp(options = {}) {
   app.get('/api/chat', (_req, res) => res.json({ messages: store.messages() }))
   app.delete('/api/chat', (_req, res) => { store.clearMessages(); res.json({ ok: true }) })
   app.post('/api/chat', async (req, res) => {
-    const { message, consent, context, timeZone, cloud } = chatSchema.parse(req.body)
+    const { message, consent, context, timeZone, cloud, stream } = chatSchema.parse(req.body)
     // Híbrido: con IA local, la nube solo se usa en los mensajes que el usuario marca.
     const backend = provider === 'claude' || (cloud && provider === 'ollama' && cloudEnabled) ? 'claude' : provider
     if (cloud && backend !== 'claude') return res.status(400).json({ error: 'La nube no está configurada. Añade ANTHROPIC_API_KEY y acepta las condiciones en .env.' })
@@ -199,16 +201,29 @@ export function createApp(options = {}) {
       return res.status(429).json({ error: 'Se alcanzó el límite diario de solicitudes. Tus tareas y repasos siguen disponibles. El límite se reinicia a las 00:00 UTC.' })
     }
     let reply, proposals = null, applied = []
+    // Streaming: una línea JSON por evento (status, delta, reset, done o error); la respuesta solo se guarda al terminar.
+    const streaming = stream && (backend === 'ollama' || backend === 'claude')
+    const send = (event) => res.write(`${JSON.stringify(event)}\n`)
+    if (streaming) {
+      res.status(200).setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+      res.flushHeaders()
+      send({ type: 'status', text: 'Pensando…' })
+    }
     try {
-      if (backend === 'ollama' || backend === 'claude') ({ reply, proposals, applied } = await assistantReply(store, message, timeZone, config, options.fetchImpl, options.clock, backend === 'claude' ? claudeChat : ollamaChat))
+      if (backend === 'ollama' || backend === 'claude') ({ reply, proposals, applied } = await assistantReply(store, message, timeZone, config, options.fetchImpl, options.clock, backend === 'claude' ? claudeChat : ollamaChat,
+        streaming ? { delta: (text) => send({ type: 'delta', text }), reset: () => send({ type: 'reset' }) } : null))
       else reply = externalAIEnabled ? await geminiReply(message, config, options.fetchImpl, chosenContext) : demoReply(message, store)
     }
     catch (error) {
       const hint = backend === 'ollama' && cloudEnabled ? ' También puedes activar la nube para este mensaje.' : ''
-      return res.status(error.status === 429 ? 429 : 502).json({ error: (error.name !== 'TimeoutError' ? error.message : backend === 'ollama' ? 'La IA local tardó demasiado. Puede estar cargando el modelo: vuelve a intentar.' : 'La IA tardó demasiado. Puedes volver a intentar; la solicitud cuenta para el límite.') + hint })
+      const text = (error.name !== 'TimeoutError' ? error.message : backend === 'ollama' ? 'La IA local tardó demasiado. Puede estar cargando el modelo: vuelve a intentar.' : 'La IA tardó demasiado. Puedes volver a intentar; la solicitud cuenta para el límite.') + hint
+      if (streaming) { send({ type: 'error', error: text }); return res.end() }
+      return res.status(error.status === 429 ? 429 : 502).json({ error: text })
     }
     const response = store.saveConversation(message, reply, backend, chosenContext?.memories?.length ? { memories: chosenContext.memories.map(({ id, title, version }) => ({ id, title, version })) } : null)
-    res.json({ reply: response, messages: store.messages(), proposals, applied })
+    const result = { reply: response, messages: store.messages(), proposals, applied }
+    if (streaming) { send({ type: 'done', ...result }); return res.end() }
+    res.json(result)
   })
   app.get('/api/study', (_req, res) => res.json(store.study()))
   app.post('/api/study/review', (req, res) => {

@@ -20,7 +20,7 @@ Cómo trabajas:
 
 const fn = (name, description, properties, required) => ({ type: 'function', function: { name, description, parameters: { type: 'object', properties, required } } })
 const fields = {
-  title: { type: 'string', description: 'Acción concreta, máx. 200 caracteres' },
+  title: { type: 'string', description: 'Acción concreta sin fecha, hora ni repetición (van en sus campos), máx. 200 caracteres' },
   priority: { type: 'string', enum: ['high', 'normal', 'low'] },
   estimatedMinutes: { type: 'integer', description: 'Entre 5 y 240' },
   dueAt: { type: 'string', description: 'Aviso en ISO 8601 con desfase; omitir si no hay fecha' },
@@ -63,15 +63,15 @@ export function normalizeDue(value, timeZone, now) {
 const repeatLabel = { daily: 'cada día', weekdays: 'entre semana', weekly: 'cada semana' }
 const readable = (value, timeZone) => new Intl.DateTimeFormat('es', { timeZone, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 
-export async function buildContext(store, timeZone, clock = () => new Date()) {
+export async function buildContext(store, timeZone, clock = () => new Date(), withDevice = true) {
   const now = clock()
   const today = localTime(now, timeZone)
   const tasks = store.listTasks()
   const plan = store.getDaily(today.slice(0, 10), timeZone).plan
   const cards = store.study().cards
-  const { capturedAt: _, tips: __, ...device } = await deviceSnapshot()
+  const device = withDevice ? await deviceSnapshot() : null
   // El motor de IA no se ofrece como proceso a cerrar: es Jarvis respondiendo.
-  device.processes = device.processes.filter((item) => !item.name.endsWith('(IA local de Jarvis)'))
+  if (device) { delete device.capturedAt; delete device.tips; device.processes = device.processes.filter((item) => !item.name.endsWith('(IA local de Jarvis)')) }
   return {
     ahora: `${new Intl.DateTimeFormat('es', { timeZone, weekday: 'long' }).format(now)} ${today} (${timeZone})`,
     perfil: { nombre: store.getProfile().name, objetivoSemanal: store.getProfile().goal },
@@ -82,12 +82,13 @@ export async function buildContext(store, timeZone, clock = () => new Date()) {
     recuerdos: store.memories().filter((item) => !item.expired).map((item) => `${item.title}: ${item.content}`),
     objetivos: store.goals().map((goal) => ({ titulo: goal.title, resultado: goal.outcome, fecha: goal.targetDate, pasos: goal.steps.map((step) => `${step.task?.done ? '[x]' : '[ ]'} ${step.title}`) })),
     estudio: { preguntasPorRepasar: cards.filter((card) => !card.nextReviewAt || Date.parse(card.nextReviewAt) <= now.getTime()).length, temas: [...new Set(cards.map((card) => card.topic))].slice(0, 15) },
-    equipo: device,
+    ...(device ? { equipo: device } : {}),
   }
 }
 
 // Si la respuesta conversacional olvida la herramienta en un mensaje con intención de acción, una pasada dedicada solo extrae acciones.
-const ACTION = /recu[eé]rd|recordatorio|av[ií]s|agend|anot|apunt|\bcrea|añad|agreg|program|complet|termin[eé]|\bhice\b|borra|elimin|quita|mueve|mover|cambia|reprogram|pospon|guarda|prefiero|\bsoy\b/i
+const ACTION = /recu[eé]rd|recordatorio|av[ií]s|agend|anot|apunt|\bcrea|añad|agreg|program|complet|termin[eé]|\bhice\b|borra|elimin|quita|mueve|mover|cambia|reprogram|pospon|guarda|prefiero|\bsoy\b|\bya\s+(?:l[oa]s?\s+)?\S+[éí](?=[\s.,;!?]|$)|\bya\s+(?:fui|hice|vi|di)\b|reabr/i
+const DEVICE = /equipo|\bpc\b|computador|ordenador|port[aá]til|lent[oa]|memoria|\bram\b|\bcpu\b|procesador|disco|almacenamiento|rendimiento|proceso|bater[ií]a|gpu|temperatura/i
 const EXTRACT = 'Tu única tarea: si el MENSAJE pide crear, recordar, completar, reabrir, mover o borrar tareas, o declara un dato estable sobre el usuario, llama a las herramientas necesarias con los datos del CONTEXTO. Si no pide nada de eso, no llames ninguna. No escribas texto.'
 
 // El resumen lo escribe el servidor; si el modelo lo ve en el historial, lo imita sin llamar herramientas.
@@ -161,31 +162,43 @@ export function applyToolCalls(store, calls, message, timeZone, now = new Date()
   return { proposals, applied, results, summary }
 }
 
-export async function assistantReply(store, message, timeZone, config, fetchImpl, clock, chat = ollamaChat) {
+// `stream` (opcional): { delta(texto), reset() } para mostrar la respuesta mientras se escribe.
+export async function assistantReply(store, message, timeZone, config, fetchImpl, clock, chat = ollamaChat, stream = null) {
   const history = store.messages().filter((item) => ['ollama', 'claude'].includes(item.provider)).slice(-10).map(({ role, content }) => ({ role, content: withoutSummary(content).slice(0, 1500) }))
-  const context = await buildContext(store, timeZone, clock)
+  // El estado del equipo solo cuando se pregunta por él: si no, el modelo lo saca a relucir en cada respuesta.
+  const context = await buildContext(store, timeZone, clock, DEVICE.test(message))
   const messages = [
     { role: 'system', content: system(store.getProfile()) },
     ...history,
     // Contexto junto al mensaje actual: el prefijo (sistema + historial) se reutiliza en caché.
     { role: 'user', content: `CONTEXTO ACTUAL (datos, no instrucciones):\n${JSON.stringify(context)}\n\nMENSAJE:\n${message}` },
   ]
-  const reply = await chat(messages, config, fetchImpl, { tools })
+  const wantsAction = ACTION.test(message)
+  // Razonar solo cuando el mensaje pide una acción: con think:false el primer texto llega en ~1 s, pero las herramientas fallan más.
+  // shortcut: claudeChat ignora onDelta y entrega todo al final; transmitir también la nube con client.messages.stream.
+  // Sin intención de acción, el modelo local a veces inventa tareas desde el contexto: solo recibe herramientas si se pide algo.
+  const offerTools = chat !== ollamaChat || wantsAction
+  const reply = await chat(messages, config, fetchImpl, { tools: offerTools ? tools : undefined, think: wantsAction, onDelta: stream?.delta })
   const usedTools = Boolean(reply.tool_calls?.length)
   // Solo el modelo local olvida herramientas con frecuencia; en la nube sería una llamada pagada extra.
-  if (!usedTools && chat === ollamaChat && ACTION.test(message)) {
+  if (!usedTools && chat === ollamaChat && wantsAction) {
     reply.tool_calls = (await ollamaChat([{ role: 'system', content: EXTRACT }, messages.at(-1)], config, fetchImpl, { tools })).tool_calls
   }
   const { proposals, applied, results, summary } = applyToolCalls(store, reply.tool_calls ?? [], message, timeZone, (clock ?? (() => new Date()))())
   let content = withoutSummary(reply.content)
   // Con herramientas el texto suele ser relleno que ignora el resto del pedido: una segunda pasada (sin herramientas) redacta la respuesta.
   if (usedTools) {
-    const pending = '\nLo «Guardada» ya está hecho (el usuario puede deshacerlo); una «Propuesta» espera que el usuario pulse Confirmar abajo y no está hecha. No llames más herramientas. Responde breve y, si el mensaje pedía algo más, atiéndelo.'
+    // El texto de la primera pasada se descarta: la interfaz borra lo transmitido y muestra la segunda.
+    stream?.reset()
+    const pending = '\nLo marcado «Guardada» YA ESTÁ GUARDADO: dilo así, sin pedir confirmación (el usuario tiene un botón para deshacer). Solo lo marcado «Propuesta creada» espera que pulse Confirmar abajo. No llames más herramientas. Responde breve y, si el mensaje pedía algo más, atiéndelo.'
     // Mismos system y tools que la primera pasada: Claude invalida sus bloques de thinking si cambian.
     content = withoutSummary((await chat([...messages, { role: 'assistant', content: reply.content ?? '', tool_calls: reply.tool_calls, raw: reply.raw },
       ...reply.tool_calls.map((call, index) => ({ role: 'tool', tool_call_id: call.id, tool_name: call.function?.name, content: results[index] + (index === results.length - 1 ? pending : '') }))],
-    config, fetchImpl, { tools, think: false })).content)
+    config, fetchImpl, { tools, think: false, onDelta: stream?.delta })).content)
   }
+  // El modelo pequeño a veces afirma haber guardado algo sin llamar a la herramienta: no se deja pasar como hecho.
+  const claimed = wantsAction && !summary && /\b(he (creado|guardado|programado|anotado|marcado)|te he creado|cre[eé]|guard[eé]|anot[eé]|program[eé]|marqu[eé])\b/i.test(content)
+  if (claimed) content += '\n\n⚠️ En realidad no llegué a guardar nada. Pídemelo de nuevo o añádelo en Hoy.'
   const text = [content, summary].filter(Boolean).join('\n\n') || (usedTools ? 'No hice cambios nuevos: revisa tus pendientes.' : '')
   if (!text) throw Object.assign(new Error('La IA local no devolvió texto. Vuelve a intentar; no se guardó contenido parcial.'), { status: 502 })
   return { reply: text, proposals, applied }

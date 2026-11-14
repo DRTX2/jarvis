@@ -11,6 +11,7 @@ import { exactLocalDate, localDateTime } from '../dates'
 import { QuickCapture } from './QuickCapture'
 import { Goals } from './Goals'
 import { Notifications } from './Notifications'
+import { Briefing } from './Briefing'
 
 const categories = { personal: 'Personal', study: 'Estudio', work: 'Trabajo' }
 const priorities = { high: 'Alta', normal: 'Normal', low: 'Baja' }
@@ -80,6 +81,7 @@ export function Today({ jarvis, navigate }: { jarvis: Jarvis; navigate: (page: P
   const dueCards = data.study.cards.filter((card) => isDue(card.nextReviewAt)).length
   return <>
     <div className="page-heading"><div><p className="date-label">{dayLabel(jarvis.day, { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>{data.profile.name ? `${data.profile.name}, vamos paso a paso.` : 'Tu día, con intención.'}</h1><p>No necesitas hacerlo todo. Elige lo que importa y empieza pequeño.</p></div><button className="button primary" onClick={() => setEditor('new')} disabled={busy}><Plus size={17} /> Añadir pendiente</button></div>
+    {jarvis.day === localDay() && <Briefing jarvis={jarvis} navigate={navigate} />}
     <div className="daily-summary" aria-label="Resumen de tu lista"><div><strong>{pending.length}</strong><span>Pendientes</span></div><div><strong>{done.length}</strong><span>Completados</span></div><div><strong>{dueCards}</strong><span>Preguntas por repasar</span></div><span className="summary-note">Tu ritmo, no una carrera.</span></div>
     <QuickCapture jarvis={jarvis} />
     <Notifications jarvis={jarvis} compact />
