@@ -1,62 +1,72 @@
 # Continuar Jarvis
 
-**Última sesión:** 14/11/2026 · **Versión:** v0.4 · **Esquema SQLite:** v9 · **Pruebas:** 76 unitarias y 50 e2e en verde · **Repositorio:** https://github.com/DRTX2/jarvis (privado)
+**Última sesión:** 14/11/2026 · **Versión:** v0.5 · **Esquema SQLite:** v9 · **Pruebas:** 79 unitarias, 50 e2e y evaluación de IA en 93 % · **Repositorio:** https://github.com/DRTX2/jarvis (privado)
 
 ## Para retomar (5 minutos)
-1. **Ollama:** `sudo systemctl enable --now ollama` y `ollama list` (debe aparecer `qwen3.5:9b`). En este PC, `/usr/local/bin/ollama` es una versión vieja (0.32.3) que tapa a la buena (`/usr/bin/ollama`, 0.40.16) y falla con «llama-server binary not found»: bórrala con `sudo rm /usr/local/bin/ollama`.
-2. `npm ci` y `npx playwright install chromium`: el sistema limpia cachés y el 14/11 faltaban los dos.
+1. **Ollama:** `sudo rm /usr/local/bin/ollama` (versión vieja y rota que tapa a la buena) y `sudo systemctl enable --now ollama`. Comprueba con `ollama list` que aparece `qwen3.5:9b`.
+2. `npm ci` y `npx playwright install chromium` (el sistema limpia cachés).
 3. `npm run check`: todo en verde antes de tocar nada.
 4. `npm run dev` y abre http://127.0.0.1:5173.
-5. `git push` funciona por HTTPS con la cuenta DRTX2 de `gh` (sin SSH). Si cambias de cuenta activa en `gh`, el push falla.
-6. Para seguir con Claude Code: `claude -c` en esta carpeta. Las conversaciones guardadas están en `docs/historial/`.
+5. `git push` funciona por HTTPS con la cuenta DRTX2 de `gh`, sin SSH.
+6. Claude Code: `claude -c` en esta carpeta. El historial está en `docs/historial/` (índice en su README).
 
-## Qué cambió el 14/11, segunda parte (v0.4)
-- **Streaming:** las respuestas se escriben en vivo. Medido con IA real: primer texto en 0,5–1,8 s en conversación y unos 6–10 s cuando pides una acción, porque razona antes.
-- **Briefing diario** en Hoy y como aviso a las 8:00: avisos de hoy, atrasados, repasos, próximo aviso y días para tu meta.
-- **Conversación por voz manos libres** (botón de ondas en el chat; di «para» para terminar).
-- **Copias automáticas diarias** en `data/backups/` (últimas 7).
-- **Calidad con IA real:**
-  - Sin intención de acción, el modelo no recibe herramientas: antes inventaba tareas.
-  - Detecta «ya llamé / ya terminé».
-  - Avisa si dice que guardó algo sin hacerlo.
-  - El estado del equipo solo entra al contexto si preguntas por él.
+## Estado: H1 «se siente como Jarvis» terminado en código
+| Versión | Qué trajo |
+|---|---|
+| v0.2 (21/10) | IA local, acciones desde el chat, voz del navegador, modo híbrido con Claude |
+| v0.3 (14/11) | Recordatorios que suenan (escritorio y push cifrado), tareas repetidas, «Deshacer» en el chat, repaso FSRS |
+| v0.4 (14/11) | Respuestas en streaming (<1 s en conversación), briefing diario, conversación por voz, copias diarias |
+| v0.5 (14/11) | **Dictado local con Whisper** (el audio no sale del PC; Firefox y móvil) y **evaluación de la IA** (`npm run eval`): 78 % → 93 % tras arreglar el detector de intención (tildes) |
 
-## Qué cambió el 14/11 (v0.3)
-- **Recordatorios que suenan:** notificación de escritorio (`notify-send`) y Web Push cifrado a los navegadores suscritos, con «Hecho» y «En 10 min». También hay tareas repetidas (cada día, entre semana, cada semana) y un resumen si se acumulan varios avisos.
-- **Organizarse hablando sin fricción:** crear, completar y reabrir desde el chat se aplica al instante con «Deshacer». Borrar, editar y recuerdos siguen como propuesta.
-- **Repaso adaptativo FSRS-5** en lugar de intervalos fijos, con probabilidad de recuerdo por pregunta y un aviso diario de repasos (desde las 9:00).
-- **Foco:** el panel «Mi equipo» pasó a Mi perfil, el README es corto y el detalle antiguo está en `docs/historial-de-versiones.md`.
-- **Arreglos:** pruebas que dependían de `/tmp/opencode`, 3 vulnerabilidades y repositorio privado en GitHub.
+Mediciones reales en este PC (RTX 5050, `qwen3.5:9b`):
+- Primer texto: 0,5–1,8 s en conversación y 6–10 s cuando hay acción.
+- Whisper: unos 5 s por frase de 5 s; la primera vez, unos 16 s de carga.
+- Aciertos de acciones: 93 % (`docs/eval/`).
 
 ## Pendiente de hacer tú
-1. **Activar Jarvis siempre encendido:** copia `data/jarvis.sqlite` (está en v4 y vacía) y luego `npm run service:install`. Después, en **Mi perfil → Avisos en este dispositivo**, pulsa «Activar avisos» en cada navegador. En Brave, activa antes la mensajería push de Google.
-2. **Usarlo a diario 2 semanas** con un examen o meta real. Es la prueba de producto que falta.
-3. **Claude real:** la suscripción Pro de claude.ai no sirve para la API. Crea una cuenta en console.anthropic.com, carga saldo (5 USD bastan para meses con `claude-haiku-5-5`) y pon `ANTHROPIC_API_KEY` y `EXTERNAL_AI_TERMS_ACCEPTED=true` en `.env`.
+1. **Arreglar Ollama** (paso 1 de arriba).
+2. **Copia de seguridad y servicio:** copia `data/jarvis.sqlite` (sigue en v4 y vacía) y ejecuta `npm run service:install`. Después activa los avisos en **Mi perfil** en cada navegador.
+3. **Usarlo a diario 2 semanas** con una meta real. Es el criterio de salida de H1 que falta (≥ 90 % de acciones aceptadas en uso real) y lo que más información da.
+4. **Claude real (opcional):** clave de console.anthropic.com con saldo; la suscripción Pro no sirve para la API.
 
-## Decisiones tuyas que siguen abiertas
-1. **Nube incluida en el plan Pro:** ¿`claude-haiku-5-5` (≈0,72 USD/mes por usuario intensivo) y Opus solo con clave propia?
-2. **Núcleo abierto:** ¿se publica como código abierto lo que corre en el equipo?
-3. **Siguiente entrega:** landing con lista de espera, arranque guiado «tengo una meta con fecha» o métricas de beta con consentimiento.
-4. **Crítica pendiente** (puntos 5 a 7: barrera de instalación, medir aprendizaje, puntos técnicos): `docs/critica-2026-11-14.md`.
+## Decisiones abiertas
+1. **Nube del plan Pro:** ¿`claude-haiku-5-5` incluido y Opus solo con clave propia?
+2. **Núcleo abierto:** ¿se publica como código abierto?
+3. **Siguiente entrega:** landing con lista de espera, arranque guiado «tengo una meta con fecha» o métricas de beta.
+4. **Crítica pendiente** (barrera de instalación, medir aprendizaje, puntos técnicos): `docs/critica-2026-11-14.md`.
 
-## Siguiente paso recomendado
-1. **Usarlo a diario** (sigue siendo lo más importante).
-2. **Dictado local con Whisper** (whisper.cpp en la GPU): voz en Firefox y móvil sin que el audio salga del equipo. Es lo único de H1 que falta.
-3. **Evaluación de la IA:** un conjunto de 30–50 mensajes reales con la acción esperada, para medir el «% de acciones correctas» antes de cambiar prompts o modelo.
-4. **Streaming también en la nube** (`client.messages.stream` en `claudeChat`); hoy Claude entrega la respuesta completa al final.
+## Siguiente trabajo técnico recomendado
+1. **Ampliar la evaluación** con frases de tu uso real (añádelas a `tests/eval/acciones.json`) y correrla 3 veces para separar fallos reales de variación del modelo.
+2. **H2 «tutor que demuestra resultados»:** medir el recuerdo a 7 y 30 días, preguntas desde tus apuntes y rutas con prerrequisitos.
+3. **Instalador** (H4, Tauri) antes de abrir la beta a personas no técnicas.
+4. **Streaming también con Claude** (`client.messages.stream`).
 
 ## Límites conocidos
-- Los avisos solo salen con Jarvis encendido.
-- Push en móvil requiere Tailscale y HTTPS.
-- Las tareas repetidas suman días de 24 h: un cambio de horario desplaza el aviso 1 h.
-- Cambiar la repetición desde el chat no está soportado (se hace en Hoy).
-- Deshacer un «completar» deja el registro histórico del cierre.
-- FSRS usa los pesos por defecto, no ajustados a la persona.
-- Notificaciones de escritorio solo en Linux.
-- Con acciones, el primer texto tarda unos 6–10 s (razonamiento). Claude no transmite en vivo.
-- El modelo local a veces no llama a la herramienta (≈1 de cada 6 pedidos de acción en la prueba real): Jarvis lo avisa y hay que repetirlo.
-- Conversación por voz solo en Chrome/Edge y sin probar automáticamente (Playwright no tiene micrófono).
-- Dictado solo en Chrome/Edge.
-- GPU solo NVIDIA.
-- Sin inicio de sesión (con Tailscale, entra cualquiera de tu red).
-- Sin telemetría para la beta.
+- **Avisos:**
+  - Solo salen con Jarvis encendido.
+  - Push en el móvil requiere Tailscale y HTTPS.
+  - En Brave hay que activar la mensajería push de Google.
+  - Notificaciones de escritorio solo en Linux.
+- **Tareas repetidas:**
+  - Un cambio de horario desplaza el aviso 1 h.
+  - La repetición no se cambia desde el chat.
+- **Deshacer y FSRS:**
+  - Deshacer un «completar» deja el registro del cierre.
+  - FSRS usa los pesos por defecto.
+- **Velocidad:**
+  - Con acciones, el primer texto tarda 6–10 s.
+  - Claude no transmite en vivo.
+- **Precisión de la IA:**
+  - El modelo local falla ~1 de cada 15 acciones por variación entre ejecuciones; si afirma algo que no hizo, Jarvis lo avisa.
+  - A veces añade un recuerdo que no se pidió (es una propuesta: no se guarda sin confirmar).
+- **Whisper:**
+  - Corre en CPU (en CUDA falta cuDNN).
+  - La primera transcripción descarga unos 600 MB.
+  - Ocupa ~1 GB de RAM mientras está cargado y se libera tras 10 min sin uso.
+  - `onnxruntime-node` pesa 548 MB en `node_modules`.
+- **Voz:**
+  - El modo conversación por voz no tiene prueba automática (no hay micrófono en las pruebas); el dictado se probó con un micrófono simulado.
+- **Plataforma:**
+  - GPU solo NVIDIA.
+  - Sin inicio de sesión (con Tailscale entra cualquiera de tu red).
+  - Sin telemetría para la beta.

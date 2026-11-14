@@ -40,10 +40,10 @@ Cada hito termina con un criterio de salida medible. No se empieza el siguiente 
 
 ### H1 · «Se siente como Jarvis» (siguiente)
 - ✅ **Streaming de respuestas** (primer texto <1 s en conversación; ~6–10 s cuando hay acciones) y ✅ voz manos libres con la voz del navegador (v0.4, 14/11/2026).
-- **Dictado local con Whisper** en la GPU: funciona en Firefox y móvil, y el audio no sale del equipo.
+- ✅ **Dictado local con Whisper** (`large-v3-turbo` en CPU, ~5 s por frase): funciona en Firefox y móvil, y el audio no sale del equipo (v0.5, 14/11/2026).
 - ✅ **Briefing diario proactivo:** al abrir Hoy y como aviso a las 8:00 (v0.4, 14/11/2026).
 - ✅ **Notificaciones push** (PWA + service worker) y de escritorio para avisos con la app cerrada, con «Hecho», posponer y tareas repetidas (v0.3, 14/11/2026).
-- *Salida:* p50 del primer token < 2 s; ≥ 90 % de propuestas aceptadas sin editar en 2 semanas de uso real.
+- *Salida:* p50 del primer token < 2 s (✅ en conversación); ≥ 90 % de acciones correctas (✅ 93 % en `npm run eval`, 40 casos) y ≥ 90 % de propuestas aceptadas sin editar en 2 semanas de uso real (pendiente: uso real).
 
 ### H2 · «Tutor que demuestra resultados»
 - ✅ Repetición espaciada **FSRS-5** en lugar del calendario fijo 1-3-7-14-30 (v0.3, 14/11/2026; pesos por defecto).

@@ -1,11 +1,14 @@
 import { createApp } from './app.mjs'
 import { desktopNotifier, pushNotifier, startReminders } from './reminders.mjs'
 import { backupDatabase } from './backup.mjs'
+import { createTranscriber } from './stt.mjs'
 
 process.umask(0o077)
 const notifiers = []
 const { app, store } = createApp({
   notifiers,
+  // Dictado con Whisper en este equipo; JARVIS_STT=off lo desactiva (el navegador usará su propio dictado).
+  transcriber: process.env.JARVIS_STT === 'off' ? null : createTranscriber({ model: process.env.WHISPER_MODEL, dtype: process.env.WHISPER_DTYPE }),
   databasePath: process.env.DATABASE_PATH,
   provider: process.env.AI_PROVIDER ?? 'ollama',
   ollamaUrl: process.env.OLLAMA_URL,

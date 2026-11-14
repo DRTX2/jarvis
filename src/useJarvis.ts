@@ -156,6 +156,15 @@ export function useJarvis() {
       try { return (await perform(() => streamChat({ message, consent, context, timeZone, cloud, stream: true }, setLive)))?.value ?? null }
       finally { setLive(null) }
     },
+    // Dictado con Whisper en el equipo: no usa `perform` para no bloquear la interfaz mientras transcribe.
+    transcribe: async (samples: Int16Array) => {
+      let response: Response
+      try { response = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: samples.slice().buffer }) }
+      catch { throw new Error('No se pudo conectar con Jarvis para transcribir.') }
+      const result = await response.json().catch(() => ({ error: 'El servidor no devolvió una transcripción válida.' }))
+      if (!response.ok) throw new Error(result.error ?? 'No se pudo transcribir el audio.')
+      return result.text as string
+    },
     loadBriefing: () => api<{ briefing: Briefing }>(`/briefing?timeZone=${encodeURIComponent(timeZone)}`).then((result) => result.briefing),
     loadDevice: () => api<{ device: Device }>('/device').then((result) => result.device),
     loadSetup: () => api<{ setup: Setup }>('/setup').then((result) => result.setup),

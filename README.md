@@ -9,7 +9,7 @@ Tu asistente personal en español que vive en tu PC: te recuerda las cosas a tie
 - **Estudia con repaso adaptativo.** Cada pregunta tiene su propio ritmo (algoritmo FSRS): si la recuerdas, el siguiente repaso se aleja; si la olvidas, vuelve en 10 minutos. Jarvis te avisa una vez al día cuando hay preguntas por repasar y muestra la probabilidad estimada de que recuerdes cada una.
 - **Tu día en 30 segundos.** Al abrir **Hoy** (y cada mañana a las 8 como aviso): qué te toca hoy, qué quedó atrasado, cuántas preguntas repasar y cuántos días faltan para tu meta. Se calcula al instante, sin IA.
 - **Respuestas que se escriben en vivo.** En una conversación normal el texto empieza a aparecer en menos de 1 s; cuando pides una acción, Jarvis razona unos segundos antes para no equivocarse.
-- **Conversación por voz manos libres** (Chrome y Edge): pulsa el botón de ondas, habla, Jarvis responde en voz alta y vuelve a escucharte. Di «para» para terminar.
+- **Voz privada:** el dictado se transcribe **en tu PC con Whisper** (`whisper-large-v3-turbo`): el audio no sale del equipo y funciona en Chrome, Edge, Firefox, Safari y el móvil. La grabación termina sola cuando dejas de hablar. Con el botón de ondas tienes **conversación manos libres**: hablas, Jarvis responde en voz alta y vuelve a escucharte. Di «para» para terminar. La primera vez descarga el modelo (~600 MB) en `data/models`.
 - **Plan del día, objetivos y materiales propios**, en la pestaña **Hoy** y en **Estudiar**.
 
 ## Empezar
@@ -73,6 +73,7 @@ Con la IA local activa, el botón ☁ del chat envía a la nube solo los mensaje
 | `npm run test:e2e` | Pruebas de navegador (requieren `npx playwright install chromium` una vez) |
 | `npm run check` | Build, pruebas de API y de navegador |
 | `npm start` | Versión compilada en :3001 (antes `npm run build`) |
+| `npm run eval` | Evalúa con la IA real 40 mensajes con su acción esperada; informe en `docs/eval/` (requiere Ollama) |
 
 Guía para trabajar con Claude Code: [CLAUDE.md](CLAUDE.md). Estado y siguiente paso: [CONTINUAR.md](CONTINUAR.md). Producto y mercado: [ROADMAP_PRODUCTO.md](ROADMAP_PRODUCTO.md) y [MERCADO_INICIAL.md](MERCADO_INICIAL.md). El detalle técnico de cada versión anterior está en [docs/historial-de-versiones.md](docs/historial-de-versiones.md).
 

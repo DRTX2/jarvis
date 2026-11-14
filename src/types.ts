@@ -12,7 +12,7 @@ export type TaskInput = Pick<Task, 'title' | 'category' | 'priority' | 'dueAt' |
 export type Profile = { name: string; goal: string; tone: 'cercano' | 'directo' | 'tranquilo' }
 export type Message = { id: number; role: 'user' | 'assistant'; content: string; provider: string; createdAt: string; context?: { memories: { id: string; title: string; version: number }[] } | null }
 export type Health = {
-  provider: 'demo' | 'gemini' | 'ollama' | 'claude'; externalAIEnabled: boolean; model?: string | null; storage: string; reminders: string
+  provider: 'demo' | 'gemini' | 'ollama' | 'claude'; externalAIEnabled: boolean; model?: string | null; storage: string; reminders: string; stt?: string | null
   cloud?: { provider: 'claude'; model: string } | null
   dailyRequests: number; maxDailyRequests: number
 }

@@ -10,6 +10,7 @@ Estado actual, decisiones pendientes y siguiente paso: @CONTINUAR.md
 - `npm run test:e2e`: Playwright. Levanta su propia API demo en :3101 con SQLite en memoria y Vite en :5174, en escritorio y Pixel 7. El primer test a veces falla por arranque en frío: repite antes de investigar.
 - `npm run build`: `tsc --noEmit` y `vite build`.
 - `npm run check`: build + unit + e2e. Córrelo antes de dar algo por terminado.
+- `npm run eval`: evaluación de acciones con la IA real (40 casos en `tests/eval/acciones.json`, reloj fijo, base en memoria). Informe en `docs/eval/`. Córrelo antes y después de tocar el prompt, las herramientas o el modelo, y compara.
 - `npm run service:install`: instala Jarvis como servicio systemd del usuario (avisos con la app cerrada). Arranca sobre `data/`: no lo ejecutes tú.
 - IA real sin tocar datos del usuario: `PORT=3201 DATABASE_PATH=/tmp/jarvis-prueba.sqlite npm start` y luego `node scripts/probe-chat.mjs "recuérdame X mañana a las 8"`.
 
@@ -20,6 +21,7 @@ Estado actual, decisiones pendientes y siguiente paso: @CONTINUAR.md
 - `server/reminders.mjs`: avisos cada 30 s por escritorio (`notify-send`) y Web Push cifrado (`web-push`, claves VAPID en `settings`), posponer, tareas repetidas.
 - `server/study.mjs`: repaso adaptativo FSRS-5 (estabilidad y dificultad por pregunta).
 - `server/briefing.mjs`: «tu día en 30 segundos» por reglas (Hoy y aviso de las 8:00). `server/backup.mjs`: copia diaria `VACUUM INTO data/backups/`, últimas 7.
+- `server/stt.mjs`: dictado local con Whisper (`@huggingface/transformers`, ONNX en CPU, modelo en `data/models`, se libera tras 10 min). Ruta `POST /api/transcribe` (PCM 16 bits mono 16 kHz). `src/localDictation.ts` graba y corta por silencio; si `health.stt` es null, el chat usa el dictado del navegador.
 - Chat en streaming: `/api/chat` con `stream: true` responde NDJSON (`status`, `delta`, `reset`, `done`, `error`); `ollamaChat({ onDelta })` lee el stream de Ollama; `streamChat` en `useJarvis.ts` lo consume.
 - `server/device.mjs`: memoria, CPU, disco, procesos y GPU (solo lectura).
 - `server/store.mjs`, `server/planning-store.mjs`, `server/migrations.mjs`: SQLite (`node:sqlite`), esquema **v9**.
@@ -40,8 +42,11 @@ Estado actual, decisiones pendientes y siguiente paso: @CONTINUAR.md
 - Ollama devuelve 500 con XML de herramienta malformado; `ollamaChat` reintenta una vez.
 - El modelo copia el formato de fecha del contexto: pásale ISO con segundos y offset (`localTime`).
 - Imita los resúmenes del historial: `withoutSummary` los quita antes de reenviar.
+- La intención se detecta sin tildes (`plain()`): «apúntame» no coincidía con `apunt`, así que el modelo no recibía las herramientas. El pasado («ya llamé») usa `PAST` con tilde.
 - Sin intención de acción (regex `ACTION`), el modelo local recibe el mensaje **sin herramientas y sin razonar**: primer texto en ~1 s y no inventa tareas desde el contexto. Con intención: herramientas + `think: true` (~6–10 s). Si afirma «he creado…» sin llamar a la herramienta, `assistantReply` añade un aviso honesto.
 - El estado del equipo solo entra al contexto si el mensaje habla del equipo (regex `DEVICE`); si no, el modelo lo menciona en cada respuesta.
+- No se puede escribir en `data/` desde Claude Code (permisos): para probar Whisper usa `createTranscriber({ cacheDir: './node_modules/@huggingface/transformers/.cache' })` en un script temporal. Whisper en CUDA falla (falta cuDNN); en CPU tarda unos 5 s por frase.
+- Para Ollama sin sudo en este PC: `OLLAMA_MODELS=<dir con blobs enlazados a /var/lib/ollama/blobs y manifests copiados> /usr/bin/ollama serve` (el `/usr/local/bin/ollama` está roto).
 - `pgrep -f`/`pkill -f "node server/index.mjs"` dentro de un comando bash mata a la propia shell (exit 144): busca el PID con `ss -ltnp | grep :PUERTO`.
 - Recomendaba cerrar su propio motor: `device.mjs` etiqueta ollama/llama-server como «IA local de Jarvis».
 - Procesos solo en Linux; GPU solo NVIDIA (`nvidia-smi`).

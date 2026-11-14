@@ -13,6 +13,7 @@ import { memorySchema } from './memory.mjs'
 import { knowledgeSchema } from './knowledge.mjs'
 import { repeats } from './reminders.mjs'
 import { buildBriefing } from './briefing.mjs'
+import { pcmToFloat } from './stt.mjs'
 import { goalSchema } from './goals.mjs'
 
 const date = z.string().datetime({ offset: true }).transform((value) => new Date(value).toISOString())
@@ -95,7 +96,8 @@ export function createApp(options = {}) {
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('Referrer-Policy', 'no-referrer')
     if (req.path.startsWith('/api')) res.setHeader('Cache-Control', 'no-store')
-    if (['POST', 'PUT', 'PATCH'].includes(req.method) && !req.is('application/json')) {
+    const audio = req.path === '/api/transcribe' && req.is('application/octet-stream')
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && !req.is('application/json') && !audio) {
       return res.status(415).json({ error: 'Se requiere contenido JSON.' })
     }
     next()
@@ -104,7 +106,7 @@ export function createApp(options = {}) {
 
   app.get('/api/health', (_req, res) => res.json({
     provider, externalAIEnabled, model: { ollama: config.ollamaModel, gemini: config.model, claude: config.claudeModel }[provider] ?? null,
-    cloud: cloudEnabled ? { provider: 'claude', model: config.claudeModel } : null, storage: 'sqlite', reminders: 'desktop-push',
+    cloud: cloudEnabled ? { provider: 'claude', model: config.claudeModel } : null, storage: 'sqlite', reminders: 'desktop-push', stt: options.transcriber?.model ?? null,
     dailyRequests: store.aiUsage(), maxDailyRequests: config.maxDailyRequests,
   }))
   app.get('/api/device', async (_req, res) => res.json({ device: await deviceSnapshot() }))
@@ -165,6 +167,13 @@ export function createApp(options = {}) {
   app.delete('/api/tasks/:id', (req, res) => {
     const removed = store.deleteTask(id(req.params.id))
     res.status(removed ? 200 : 404).json(removed ? { ok: true } : { error: 'No se encontró la tarea.' })
+  })
+  // Dictado local: PCM de 16 bits mono a 16 kHz (máx. ~60 s). El audio se procesa en memoria y no se guarda.
+  app.post('/api/transcribe', express.raw({ type: 'application/octet-stream', limit: '2mb' }), async (req, res) => {
+    if (!options.transcriber) return res.status(503).json({ error: 'El dictado local no está activo en este servidor.' })
+    if (!Buffer.isBuffer(req.body) || req.body.length < 3200) return res.status(400).json({ error: 'No llegó audio suficiente. Habla un poco más cerca del micrófono.' })
+    try { res.json({ text: await options.transcriber.transcribe(pcmToFloat(req.body)) }) }
+    catch (error) { res.status(502).json({ error: `No se pudo transcribir el audio en tu equipo: ${error.message}` }) }
   })
   app.get('/api/briefing', (req, res) => res.json({ briefing: buildBriefing(store, z.object({ timeZone: timeZoneSchema.default('UTC') }).parse(req.query).timeZone, options.clock?.() ?? new Date()) }))
   app.get('/api/reminders', (_req, res) => res.json({ reminders: store.reminders() }))
@@ -350,6 +359,7 @@ export function createApp(options = {}) {
   }
   app.use((error, _req, res, _next) => {
     if (error instanceof z.ZodError) return res.status(400).json({ error: 'Revisa los campos: hay datos vacíos, demasiado largos o no válidos.' })
+    if (error.type === 'entity.too.large') return res.status(413).json({ error: 'Demasiado contenido de una vez (el dictado admite hasta un minuto de audio).' })
     const status = error.status ?? 500
     res.status(status).json({ error: status === 500 ? 'No se pudo completar la operación. Tu información guardada sigue disponible.' : error.message })
   })

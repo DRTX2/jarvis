@@ -1,0 +1,460 @@
+[
+  {
+    "mensaje": "recuérdame llamar al dentista mañana a las 10am",
+    "accion": "crear",
+    "fecha": "2026-11-17",
+    "hora": "10:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-17T10:00-05:00"
+    ],
+    "respuesta": "¡Listo! He guardado la tarea de **llamar al dentista** para mañana (martes) a las 10:00 am. Te enviaré un aviso en ese momento.\n\nPor cierto, si es una cita fija",
+    "segundos": 12.995
+  },
+  {
+    "mensaje": "pon un recordatorio para pagar el arriendo el viernes a las 9 de la mañana",
+    "accion": "crear",
+    "fecha": "2026-11-20",
+    "hora": "09:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-20T09:00-05:00"
+    ],
+    "respuesta": "¡Listo! He creado el recordatorio para **pagar el arriendo**.\n\nTe avisaré el **viernes a las 9:00 de la mañana** (prioridad alta). Como es una tarea personal im",
+    "segundos": 10.463
+  },
+  {
+    "mensaje": "recuérdame tomar agua en una hora",
+    "accion": "crear",
+    "fecha": "2026-11-16",
+    "hora": "10:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-16T10:00-05:00"
+    ],
+    "respuesta": "¡Listo! Ya tienes la tarea «Tomar agua» agendada para dentro de una hora a las 10:00. ¡A por esa hidratación! 🚰\n\nYa quedó guardado:\n• Creé «Tomar agua» · aviso",
+    "segundos": 8.344
+  },
+  {
+    "mensaje": "anota que tengo que comprar el libro de cálculo",
+    "accion": "crear",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-16T19:00-05:00"
+    ],
+    "respuesta": "¡Listo! He guardado la tarea de \"Comprar libro de cálculo\" para hoy a las 7:00 p.m.\n\nYa tienes pendiente también tu informe de redes (para mañana) y llamar a ma",
+    "segundos": 8.41
+  },
+  {
+    "mensaje": "agrega estudiar para el parcial de física",
+    "accion": "crear",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-16T21:00-05:00"
+    ],
+    "respuesta": "¡Listo! La tarea ya está guardada en tu lista (puedes deshacerla con un clic). \n\nPara que sea más efectivo, te sugiero usar la **práctica de recuperación**: int",
+    "segundos": 15.279
+  },
+  {
+    "mensaje": "recuérdame repasar inglés todos los días a las 8pm",
+    "accion": "crear",
+    "hora": "20:00",
+    "repetir": "daily",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-16T20:00-05:00 daily"
+    ],
+    "respuesta": "¡Listo! He creado la tarea de «Repasar inglés» para las 8:00 PM de hoy. Como es una rutina diaria, se guardará cada día a esa hora para que no te olvides. \n\nPor",
+    "segundos": 10.775
+  },
+  {
+    "mensaje": "recuérdame ir al gimnasio entre semana a las 6am",
+    "accion": "crear",
+    "hora": "06:00",
+    "repetir": "weekdays",
+    "ok": false,
+    "motivo": "hizo además/en su lugar: recordar",
+    "hechas": [
+      "recordar"
+    ],
+    "respuesta": "¡Claro que sí! Vamos a configurar ese recordatorio de gimnasio para ti. 🏋️‍♂️\n\nTe lo dejo como propuesta para confirmar:\n\n- **Título:** Ir al gimnasio\n- **Área",
+    "segundos": 26.69
+  },
+  {
+    "mensaje": "cada lunes a las 7 de la mañana recuérdame planear la semana",
+    "accion": "crear",
+    "hora": "07:00",
+    "repetir": "weekly",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-16T07:00-05:00 weekly"
+    ],
+    "respuesta": "¡Listo! He programado esa tarea para los lunes a las 7:00 de la mañana. Se guardó al instante, así que puedes deshacerla con un clic si cambias de opinión.\n\n¿Qu",
+    "segundos": 13.719
+  },
+  {
+    "mensaje": "recuérdame enviar el CV a la empresa el miércoles a las 3 de la tarde",
+    "accion": "crear",
+    "fecha": "2026-11-18",
+    "hora": "15:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-18T15:00-05:00"
+    ],
+    "respuesta": "¡Listo! Ya guardé la tarea de \"Enviar CV a la empresa\" para que te lo recuerde este miércoles a las 3:00 PM.\n\n¿Hay algo más en lo que pueda ayudarte hoy?\n\nYa qu",
+    "segundos": 9.878
+  },
+  {
+    "mensaje": "necesito acordarme de llamar a Juan esta noche a las 9",
+    "accion": "crear",
+    "fecha": "2026-11-16",
+    "hora": "21:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-16T21:00-05:00"
+    ],
+    "respuesta": "¡Listo! Ya he guardado «Llamar a Juan» para esta noche a las 9 PM. Si quieres cambiarle la prioridad o ajustar el tiempo estimado, solo dímelo. ¡Aprovecha para ",
+    "segundos": 11.828
+  },
+  {
+    "mensaje": "apúntame una reunión con el profe el jueves a las 10am",
+    "accion": "crear",
+    "fecha": "2026-11-19",
+    "hora": "10:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-19T10:00-05:00"
+    ],
+    "respuesta": "¡Listo! Te he apuntado la reunión con el profe para este **jueves a las 10:00**.\n\n¿Te parece bien que reserve **60 minutos** para ella? Así podrás aprovecharla ",
+    "segundos": 10.089
+  },
+  {
+    "mensaje": "créame una tarea: leer el capítulo 4 de redes",
+    "accion": "crear",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4"
+    ],
+    "respuesta": "¡Listo! Tu tarea de leer el capítulo 4 de redes ya está en tu lista de pendientes para que no la olvides. 🚀\n\n¿Te gustaría añadirle una fecha límite o repetirla",
+    "segundos": 10.319
+  },
+  {
+    "mensaje": "no me dejes olvidar sacar la basura mañana a las 8 de la noche",
+    "accion": "crear",
+    "fecha": "2026-11-17",
+    "hora": "20:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-17T20:00-05:00"
+    ],
+    "respuesta": "¡Listo! Te avisaré mañana a las 8:00 PM para que no se te escape. ¿Hay algún otro detalle que quieras añadirle, como por ejemplo cuántos minutos estimas que tom",
+    "segundos": 9.394
+  },
+  {
+    "mensaje": "programa un repaso de derivadas para el sábado a las 11 de la mañana",
+    "accion": "crear",
+    "fecha": "2026-11-21",
+    "hora": "11:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-21T11:00-05:00"
+    ],
+    "respuesta": "¡Listo! He programado tu repaso de derivadas para el sábado a las 11:00 AM. \n\nDado que tienes pendiente un informe de redes con prioridad alta para el viernes, ",
+    "segundos": 13.204
+  },
+  {
+    "mensaje": "avísame en 30 minutos para sacar la ropa de la lavadora",
+    "accion": "crear",
+    "fecha": "2026-11-16",
+    "hora": "09:30",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "crear#4 2026-11-16T09:30-05:00"
+    ],
+    "respuesta": "¡Listo! Te he guardado la tarea de \"Sacar la ropa de la lavadora\" para las 09:30 de hoy (son solo 30 minutos desde ahora). La he estimado en unos 20 minutos, pe",
+    "segundos": 9.691
+  },
+  {
+    "mensaje": "ya llamé a mamá",
+    "accion": "completar",
+    "tarea": 1,
+    "ok": false,
+    "motivo": "no hizo nada",
+    "hechas": [],
+    "respuesta": "¡Qué bien! 📞 Entonces esa llamada ya está hecha. Te dejo para confirmar que complete esa tarea (\"Llamar a mamá\").\n\n¿Cómo te fue? ¿Hubo algo específico que quer",
+    "segundos": 13.086
+  },
+  {
+    "mensaje": "terminé el informe de redes",
+    "accion": "completar",
+    "tarea": 2,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "completar#2 2026-11-18T17:00-05:00"
+    ],
+    "respuesta": "¡Excelente! El informe de redes ya está marcado como completado. Ahora puedes dedicarte a otras cosas sin esa preocupación. ¿Hay algo más que quieras revisar ho",
+    "segundos": 5.266
+  },
+  {
+    "mensaje": "listo, ya entregué el informe",
+    "accion": "completar",
+    "tarea": 2,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "completar#2 2026-11-18T17:00-05:00"
+    ],
+    "respuesta": "¡Excelente! 🎉 Entonces el informe ya está en camino. Te lo marco como completado para que suelte esa carga y te enfoques en lo siguiente.\n\n¿Qué sigue hoy? Tien",
+    "segundos": 10.216
+  },
+  {
+    "mensaje": "marca como hecha la llamada a mamá",
+    "accion": "completar",
+    "tarea": 1,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "completar#1 2026-11-16T19:00-05:00"
+    ],
+    "respuesta": "¡Listo! La llamada a mamá ya está marcada como realizada. ¿Hay algo más en tu agenda para hoy o te gustaría que repasemos esos 3 temas de \"Fundamentos de la web",
+    "segundos": 4.314
+  },
+  {
+    "mensaje": "hecho lo del informe de redes",
+    "accion": "completar",
+    "tarea": 2,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "completar#2 2026-11-18T17:00-05:00"
+    ],
+    "respuesta": "¡Hecho! Ya he marcado como completado el informe de redes. 🎉\n\nAhora te queda solo la llamada a mamá esta noche (las 7:00 p.m.). ¿Quieres que hagamos una pequeñ",
+    "segundos": 5.005
+  },
+  {
+    "mensaje": "en realidad no compré el pan, vuelve a abrir esa tarea",
+    "accion": "reabrir",
+    "tarea": 3,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "reabrir#3"
+    ],
+    "respuesta": "¡Hecho! Ya reabrí la tarea de «Comprar pan». Así podrás volver a marcarla como completada cuando lo hagas en realidad. ¿Hay algo más que necesites revisar hoy?\n",
+    "segundos": 5.122
+  },
+  {
+    "mensaje": "reabre la tarea de comprar pan",
+    "accion": "reabrir",
+    "tarea": 3,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "reabrir#3"
+    ],
+    "respuesta": "¡Listo! He reabierto la tarea de «Comprar pan». Ya está guardada a salvo en tu lista para cuando decidas volver a hacer esa compra. Si necesitas que te lo avise",
+    "segundos": 6.166
+  },
+  {
+    "mensaje": "borra la tarea de llamar a mamá",
+    "accion": "borrar",
+    "tarea": 1,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "borrar#1 2026-11-16T19:00-05:00"
+    ],
+    "respuesta": "¡Listo! Te he propuesto borrar la tarea de \"Llamar a mamá\". Solo tienes que confirmar esa propuesta para que se borre definitivamente. ¿Quieres que lo haga ahor",
+    "segundos": 5.116
+  },
+  {
+    "mensaje": "elimina lo del informe, ya no lo necesito",
+    "accion": "borrar",
+    "tarea": 2,
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "borrar#2 2026-11-18T17:00-05:00"
+    ],
+    "respuesta": "¡Entendido! Te dejo para confirmar la eliminación del informe de redes. 🗑️\n\n¿Hay alguna otra cosa con la que pueda ayudarte hoy?\n\nTe dejo esto para confirmar:\n",
+    "segundos": 5.952
+  },
+  {
+    "mensaje": "mueve el informe de redes al viernes a las 5pm",
+    "accion": "editar",
+    "tarea": 2,
+    "fecha": "2026-11-20",
+    "hora": "17:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "editar#2 2026-11-20T17:00-05:00"
+    ],
+    "respuesta": "¡Hecho! El informe de redes ahora tiene su nuevo aviso para el viernes a las 5pm. Recuerda que puedes deshacer este cambio con un clic si necesitas ajustarlo de",
+    "segundos": 11.803
+  },
+  {
+    "mensaje": "cambia la llamada a mamá para mañana a las 8 de la noche",
+    "accion": "editar",
+    "tarea": 1,
+    "fecha": "2026-11-17",
+    "hora": "20:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "editar#1 2026-11-17T20:00-05:00"
+    ],
+    "respuesta": "¡Hecho! Te he movido la llamada a mamá para mañana martes a las 8 de la noche. Ya lo tienes guardado en tu agenda. Si te arrepientes del cambio, solo tienes que",
+    "segundos": 11.504
+  },
+  {
+    "mensaje": "pospón lo de llamar a mamá una hora",
+    "accion": "editar",
+    "tarea": 1,
+    "fecha": "2026-11-16",
+    "hora": "20:00",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "editar#1 2026-11-16T20:00-05:00"
+    ],
+    "respuesta": "¡Listo! He movido la llamada a las 8:00 PM de hoy para que tengas un horario más cómodo. ¿Te parece bien o prefieres ajustar algo más?\n\nTe dejo esto para confir",
+    "segundos": 10.177
+  },
+  {
+    "mensaje": "prefiero estudiar de noche",
+    "accion": "recordar",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "recordar"
+    ],
+    "respuesta": "¡Entendido! He propuesto guardar tu preferencia de estudiar de noche para tenerla en cuenta a partir de ahora.\n\n¿Hay algo más con lo que pueda ayudarte hoy? Ten",
+    "segundos": 7.223
+  },
+  {
+    "mensaje": "soy estudiante de ingeniería de sistemas",
+    "accion": "recordar",
+    "ok": false,
+    "motivo": "no hizo nada",
+    "hechas": [],
+    "respuesta": "¡Hola! Qué gusto saludarte, colega de ingeniería de sistemas 🎓👷‍♂️  \nVeo que tienes un informe de redes para el viernes (prioridad alta) y una llamada a mamá ",
+    "segundos": 31.899
+  },
+  {
+    "mensaje": "trabajo de 8 a 5 entre semana",
+    "accion": "recordar",
+    "ok": true,
+    "motivo": null,
+    "hechas": [
+      "recordar"
+    ],
+    "respuesta": "¡Listo! He guardado tu horario laboral (8 a 5 entre semana) en mis notas. Así podré sugerirte tareas o recordatorios que no choquen con tu jornada de trabajo. \n",
+    "segundos": 7.089
+  },
+  {
+    "mensaje": "hola, ¿cómo estás?",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Hola! Todo a la perfección, gracias por preguntar. Yo estoy cargando con energía para ayudarte a que tú también lo estés hoy. 😊\n\nVeo que tienes un par de cosa",
+    "segundos": 3.74
+  },
+  {
+    "mensaje": "explícame qué es la recursión",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Hola! Claro que sí, te lo explico con un ejemplo que seguro entenderás a la primera. Imagina que tienes una caja dentro de otra caja, y así sucesivamente, hast",
+    "segundos": 4.848
+  },
+  {
+    "mensaje": "¿cómo estudio mejor para un examen de cálculo?",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "Hola! Qué buena pregunta, porque calcular el \"mejor\" método depende mucho de cómo procesa tu cerebro, pero tengo unos trucos basados en evidencia que suelen fun",
+    "segundos": 7.085
+  },
+  {
+    "mensaje": "cuéntame un chiste",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Claro que sí, jefe! Aquí va uno para despejar la mente antes de atacar ese informe de redes:\n\n¿Por qué el router nunca hace broma?\n...porque es demasiado *cone",
+    "segundos": 2.739
+  },
+  {
+    "mensaje": "¿qué tengo pendiente hoy?",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Hola! Para que tengas una jornada sin sorpresas, aquí tienes tu radar de pendientes para hoy (lunes):\n\n1.  **Llamar a mamá** 📞: Es la prioridad normal del día",
+    "segundos": 4.215
+  },
+  {
+    "mensaje": "mi pc va lento, ¿qué hago?",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Hola! Detecto que tu equipo está un poco \"sobrecalentado\" por el tráfico web de Brave y los procesos aislados (Isolated Web Co), además de estar usando el 84% ",
+    "segundos": 8.484
+  },
+  {
+    "mensaje": "¿qué es mejor, TCP o UDP para un juego?",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Hola! Esa es una excelente pregunta que suele tener una respuesta corta y una larga. 😄\n\nPara la mayoría de los juegos online (especialmente aquellos con movim",
+    "segundos": 7.79
+  },
+  {
+    "mensaje": "estoy cansado y no tengo ganas de estudiar",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Te escucho, jefe! Entiendo perfectamente; a veces el cerebro se resiste como un navegador con demasiadas pestañas abiertas. 😴 Dicho esto, recordemos que tiene",
+    "segundos": 5.721
+  },
+  {
+    "mensaje": "¿me recuerdas cómo se llama la técnica de explicar con palabras simples?",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Claro que sí! Esa es la **Técnica Feynman**, nombrada así tras Richard Feynman, premio Nobel de física conocido por su capacidad para explicar conceptos comple",
+    "segundos": 12.637
+  },
+  {
+    "mensaje": "ayer terminé de ver una serie buenísima",
+    "accion": "ninguna",
+    "ok": true,
+    "motivo": null,
+    "hechas": [],
+    "respuesta": "¡Qué bien! Me alegra que hayas terminado esa serie ayer. 🎬 ¿Cuál fue? Si quieres, puedo recomendarte algo similar o simplemente disfrutar de ese buen rato de d",
+    "segundos": 12.16
+  }
+]
