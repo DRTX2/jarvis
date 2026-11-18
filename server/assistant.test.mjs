@@ -119,10 +119,36 @@ test('IA local: si la respuesta olvida la herramienta en un pedido de acción, u
   assert.equal(calls.length, 1, 'sin intención de acción no hay pasada extra')
 })
 
+// Claude responde por streaming: el mensaje descrito se emite como la secuencia SSE real (texto en trozos,
+// argumentos de herramientas como input_json_delta). `partial_json` en un tool_use fuerza un JSON concreto.
+const sse = (message) => {
+  const events = []
+  const emit = (type, data = {}) => events.push(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`)
+  const { content, stop_reason, ...rest } = message
+  emit('message_start', { message: { ...rest, content: [], stop_reason: null } })
+  content.forEach((block, index) => {
+    if (block.type === 'text') {
+      emit('content_block_start', { index, content_block: { type: 'text', text: '' } })
+      for (const piece of block.text.match(/.{1,6}/gsu) ?? []) emit('content_block_delta', { index, delta: { type: 'text_delta', text: piece } })
+    } else if (block.type === 'tool_use') {
+      const { partial_json, ...tool } = block
+      emit('content_block_start', { index, content_block: { ...tool, input: {} } })
+      emit('content_block_delta', { index, delta: { type: 'input_json_delta', partial_json: partial_json ?? JSON.stringify(tool.input) } })
+    } else if (block.type === 'thinking') {
+      emit('content_block_start', { index, content_block: { type: 'thinking', thinking: '', signature: '' } })
+      emit('content_block_delta', { index, delta: { type: 'signature_delta', signature: block.signature } })
+    } else emit('content_block_start', { index, content_block: block })
+    emit('content_block_stop', { index })
+  })
+  emit('message_delta', { delta: { stop_reason, stop_sequence: null }, usage: { output_tokens: 1 } })
+  emit('message_stop')
+  return events.join('')
+}
 const anthropic = (responses, calls) => async (url, init) => {
   calls.push({ url: String(url), headers: new Headers(init.headers), body: JSON.parse(init.body) })
   const next = responses[calls.length - 1]
-  return new Response(JSON.stringify({ id: `msg_${calls.length}`, type: 'message', role: 'assistant', model: 'claude-opus-5-5', stop_details: null, usage: { input_tokens: 1, output_tokens: 1 }, ...next }), { status: next.status ?? 200, headers: { 'content-type': 'application/json' } })
+  if (next.status) return new Response(JSON.stringify(next), { status: next.status, headers: { 'content-type': 'application/json' } })
+  return new Response(sse({ id: `msg_${calls.length}`, type: 'message', role: 'assistant', model: 'claude-opus-5-5', stop_details: null, usage: { input_tokens: 1, output_tokens: 1 }, ...next }), { status: 200, headers: { 'content-type': 'text/event-stream' } })
 }
 const thinking = { type: 'thinking', thinking: '', signature: 'firma' }
 
@@ -142,6 +168,8 @@ test('nube (Claude): herramientas, bloques reenviados sin cambios, fallbacks y c
   assert.equal(calls[0].body.fallbacks, 'default')
   assert.deepEqual(calls[0].body.output_config, { effort: 'medium' })
   assert.equal(calls[0].body.tools[0].input_schema.type, 'object')
+  assert.equal(calls[0].body.stream, true, 'la nube también responde por streaming')
+  assert.ok(calls[0].body.tools.every((tool) => tool.eager_input_streaming === true), 'argumentos en streaming: assistant.mjs los valida con zod')
   assert.match(calls[0].body.system, /Eres Jarvis/)
   assert.equal(calls[1].body.system, calls[0].body.system, 'system idéntico en la segunda pasada')
   assert.deepEqual(calls[1].body.tools, calls[0].body.tools, 'tools idénticas en la segunda pasada')
@@ -171,6 +199,48 @@ test('híbrido: local por defecto, nube solo en mensajes marcados; sin aceptar c
   assert.equal((await noTerms.request('/chat', 'POST', { message: 'x', cloud: true })).status, 400)
   const primary = await setup(t, fake, { provider: 'claude', anthropicApiKey: 'clave' })
   assert.equal((await primary.request('/health')).data.provider, 'demo', 'sin aceptar condiciones, Claude no se activa')
+})
+
+test('nube: el texto llega a la interfaz mientras se genera', async (t) => {
+  const calls = []
+  const { base } = await setup(t, anthropic([{ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Las derivadas miden el cambio.' }] }], calls),
+    { provider: 'claude', anthropicApiKey: 'clave', termsAccepted: true })
+  const response = await fetch(`${base}/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'explícame las derivadas', stream: true, timeZone: 'UTC' }) })
+  const events = (await response.text()).trim().split('\n').map((line) => JSON.parse(line))
+  const deltas = events.filter((event) => event.type === 'delta')
+  assert.ok(deltas.length > 1, 'varios fragmentos, no uno solo al final')
+  assert.equal(deltas.map((event) => event.text).join(''), 'Las derivadas miden el cambio.')
+  assert.equal(events.at(-1).type, 'done'); assert.equal(events.at(-1).reply.content, 'Las derivadas miden el cambio.')
+})
+
+test('nube: tras un respaldo a mitad de respuesta, lo pedido por el modelo que declinó no se ejecuta ni se reenvía', async (t) => {
+  const calls = []
+  const { request, store } = await setup(t, anthropic([
+    { stop_reason: 'tool_use', content: [
+      thinking, { type: 'text', text: 'Voy ' },
+      { type: 'tool_use', id: 'toolu_declinado', name: 'propose_task', input: { title: 'No debe existir' } },
+      { type: 'fallback', from: { model: 'claude-opus-5-5' }, to: { model: 'claude-opus-4-8' } },
+      { type: 'text', text: 'a guardarlo.' },
+      { type: 'tool_use', id: 'toolu_1', name: 'propose_task', input: { title: 'Leer', dueAt: '2026-10-22T20:00:00-05:00' } },
+    ] },
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Hecho.' }] },
+  ], calls), { provider: 'claude', anthropicApiKey: 'clave', termsAccepted: true })
+  const { status } = await request('/chat', 'POST', { message: 'recuérdame leer mañana a las 8pm', timeZone: 'America/Bogota' })
+  assert.equal(status, 200)
+  assert.deepEqual(store.listTasks().map((task) => task.title), ['Leer'])
+  const echoed = calls[1].body.messages.at(-2).content
+  assert.deepEqual(echoed.map((block) => block.type), ['text', 'fallback', 'text', 'tool_use'], 'antes del límite solo el texto; el bloque fallback queda en su sitio')
+  assert.deepEqual(calls[1].body.messages.at(-1).content.map((item) => item.tool_use_id), ['toolu_1'])
+})
+
+test('nube: argumentos de herramienta ilegibles no se ejecutan', async (t) => {
+  const calls = []
+  const { request, store } = await setup(t, anthropic([
+    { stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'toolu_1', name: 'propose_task', input: {}, partial_json: '}}nope{' }] },
+  ], calls), { provider: 'claude', anthropicApiKey: 'clave', termsAccepted: true })
+  const result = await request('/chat', 'POST', { message: 'recuérdame leer', timeZone: 'UTC' })
+  assert.equal(result.status, 502); assert.match(result.data.error, /ilegible/)
+  assert.equal(store.listTasks().length, 0)
 })
 
 test('nube: una negativa o una clave inválida no guardan nada', async (t) => {

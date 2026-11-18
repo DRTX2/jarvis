@@ -112,9 +112,17 @@ export async function chatReply(chat, message, config, fetchImpl, context = null
 const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5-5'])
 const cloudError = (message, status = 502) => Object.assign(new Error(message), { status })
 
+// Tras un respaldo a mitad de respuesta (fallbacks), lo anterior al último bloque `fallback` es del modelo que
+// declinó: solo su texto se reenvía (es el contexto que continuó el otro modelo) y el bloque `fallback` queda en su sitio.
+function fallbackBoundary(blocks) {
+  return blocks.findLastIndex((block) => block.type === 'fallback')
+}
+const echoable = (blocks) => blocks.filter((block, index) => index >= fallbackBoundary(blocks) || block.type === 'text')
+
 // Mismo contrato que ollamaChat: mensajes { role, content, tool_calls } y respuesta { content, tool_calls }.
 // `raw` conserva los bloques de Claude (thinking incluido) para reenviarlos sin cambios dentro del turno.
-export async function claudeChat(messages, config, fetchImpl, { tools, json = false } = {}) {
+// Con `onDelta`, el texto se entrega mientras se genera (como el modelo local).
+export async function claudeChat(messages, config, fetchImpl, { tools, json = false, onDelta } = {}) {
   const system = messages.filter((item) => item.role === 'system').map((item) => item.content).join('\n\n')
   const history = []
   for (const item of messages.filter((entry) => entry.role !== 'system')) {
@@ -123,33 +131,40 @@ export async function claudeChat(messages, config, fetchImpl, { tools, json = fa
       const last = history.at(-1)
       if (last?.role === 'user' && Array.isArray(last.content) && last.content[0]?.type === 'tool_result') last.content.push(result)
       else history.push({ role: 'user', content: [result] })
-    } else if (item.raw) history.push({ role: 'assistant', content: item.raw })
+    } else if (item.raw) history.push({ role: 'assistant', content: echoable(item.raw) })
     else history.push({ role: item.role, content: item.content })
   }
   const fallback = FALLBACK_MODELS.has(config.claudeModel)
   const client = new Anthropic({ apiKey: config.anthropicApiKey, fetch: fetchImpl, timeout: 120_000 })
   let response
   try {
-    response = await client.beta.messages.create({
+    const stream = client.beta.messages.stream({
       model: config.claudeModel, max_tokens: 16000,
       output_config: { effort: 'medium' },
       ...(fallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
       system: json ? `${system}\n\nResponde exclusivamente con un objeto JSON válido, sin texto adicional ni bloques de código.` : system,
       messages: history,
-      ...(tools ? { tools: tools.map(({ function: tool }) => ({ name: tool.name, description: tool.description, input_schema: tool.parameters })) } : {}),
+      // eager_input_streaming: los argumentos llegan sin validar del lado de la API; assistant.mjs los valida con zod antes de aplicarlos.
+      ...(tools ? { tools: tools.map(({ function: tool }) => ({ name: tool.name, description: tool.description, input_schema: tool.parameters, eager_input_streaming: true })) } : {}),
     })
+    if (onDelta) stream.on('text', (delta) => onDelta(delta))
+    response = await stream.finalMessage()
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) throw cloudError('La clave de Anthropic no es válida. Revisa ANTHROPIC_API_KEY en .env.')
     if (error instanceof Anthropic.RateLimitError) throw cloudError('Anthropic limitó las solicitudes. Espera un momento y vuelve a intentar.', 429)
     if (error instanceof Anthropic.APIConnectionError) throw cloudError('No se pudo conectar con Anthropic. Revisa tu conexión a internet.')
     if (error instanceof Anthropic.APIError) throw cloudError(`La IA en la nube falló (${error.status}). No se guardó contenido parcial.`)
+    // El SDK lanza AnthropicError (no APIError) si no puede leer el JSON de una herramienta (eager_input_streaming).
+    // Sin reintento automático: el texto ya mostrado se duplicaría; el usuario repite el mensaje.
+    if (error instanceof Anthropic.AnthropicError) throw cloudError('La IA en la nube devolvió una acción ilegible. Vuelve a intentar; no se guardó contenido parcial.')
     throw error
   }
   if (response.stop_reason === 'refusal') throw cloudError('Claude declinó responder a este mensaje. Reformúlalo o usa la IA local.')
   if (response.stop_reason === 'max_tokens') throw cloudError('La respuesta en la nube quedó incompleta. Vuelve a intentar; no se guardó contenido parcial.')
   return {
     content: response.content.filter((block) => block.type === 'text').map((block) => block.text).join(''),
-    tool_calls: response.content.filter((block) => block.type === 'tool_use').map((block) => ({ id: block.id, function: { name: block.name, arguments: block.input } })),
+    // Las herramientas que pidió un modelo que luego declinó nunca se ejecutan: solo las posteriores al último `fallback`.
+    tool_calls: response.content.slice(fallbackBoundary(response.content) + 1).filter((block) => block.type === 'tool_use').map((block) => ({ id: block.id, function: { name: block.name, arguments: block.input } })),
     raw: response.content,
   }
 }

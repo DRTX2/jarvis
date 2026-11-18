@@ -1,6 +1,6 @@
 # Continuar Jarvis
 
-**Última sesión:** 14/11/2026 · **Versión:** v0.5 · **Esquema SQLite:** v9 · **Pruebas:** 79 unitarias, 50 e2e y evaluación de IA en 93 % · **Repositorio:** https://github.com/DRTX2/jarvis (privado)
+**Última sesión:** 14/11/2026 · **Versión:** v0.5 · **Esquema SQLite:** v9 · **Pruebas:** 82 unitarias, 50 e2e y evaluación de IA en 93 % · **Repositorio:** https://github.com/DRTX2/jarvis (privado)
 
 ## Para retomar (5 minutos)
 1. **Ollama:** `sudo rm /usr/local/bin/ollama` (versión vieja y rota que tapa a la buena) y `sudo systemctl enable --now ollama`. Comprueba con `ollama list` que aparece `qwen3.5:9b`.
@@ -39,7 +39,7 @@ Mediciones reales en este PC (RTX 5050, `qwen3.5:9b`):
 1. **Ampliar la evaluación** con frases de tu uso real (añádelas a `tests/eval/acciones.json`) y correrla 3 veces para separar fallos reales de variación del modelo.
 2. **H2 «tutor que demuestra resultados»:** medir el recuerdo a 7 y 30 días, preguntas desde tus apuntes y rutas con prerrequisitos.
 3. **Instalador** (H4, Tauri) antes de abrir la beta a personas no técnicas.
-4. **Streaming también con Claude** (`client.messages.stream`).
+4. ~~**Streaming también con Claude**~~ hecho el 17/11: la nube transmite el texto como el modelo local, con respaldo a mitad de respuesta (`fallbacks`) y argumentos de herramientas en streaming validados con zod.
 
 ## Límites conocidos
 - **Avisos:**

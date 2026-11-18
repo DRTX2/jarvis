@@ -179,7 +179,6 @@ export async function assistantReply(store, message, timeZone, config, fetchImpl
   ]
   const wantsAction = wantsActionIn(message)
   // Razonar solo cuando el mensaje pide una acción: con think:false el primer texto llega en ~1 s, pero las herramientas fallan más.
-  // shortcut: claudeChat ignora onDelta y entrega todo al final; transmitir también la nube con client.messages.stream.
   // Sin intención de acción, el modelo local a veces inventa tareas desde el contexto: solo recibe herramientas si se pide algo.
   const offerTools = chat !== ollamaChat || wantsAction
   const reply = await chat(messages, config, fetchImpl, { tools: offerTools ? tools : undefined, think: wantsAction, onDelta: stream?.delta })
